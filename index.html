@@ -202,6 +202,7 @@ button:active{opacity:.7}
       var src = it.company || it.source || "";
       var meta = [it.location, it.comp].filter(Boolean).join(" &middot; ");
       var note = it.why || it.note || "";
+      if(!note && it.when) note = it.when;
       return '<div class="item"><div class="h">'+head+'</div>'+
         (src?'<div class="src">'+esc(src)+'</div>':'')+
         (meta?'<div class="meta">'+meta+'</div>':'')+
@@ -243,14 +244,19 @@ button:active{opacity:.7}
 
     html += gateHtml(live.gate, live.params || {rv_thr:0.35,vr_thr:1.10,dd_exit:0.20});
     html += marketsHtml(live.markets);
+    var hl = live.headlines || {};
+    if(hl.markets && hl.markets.length)
+      html += h2("Market News","Live feed")+itemsHtml(hl.markets);
+    if(hl.world && hl.world.length)
+      html += h2("World","Geopolitics")+itemsHtml(hl.world);
+
     if(R){
       html += section("jobs", "Roles"+(R.jobs?" ("+R.jobs.length+")":""), "Job scout", R);
       html += section("cyber_intel", "Cyber Insurance", "Industry", R);
-      html += section("market_news", "Market News", "Overnight", R);
       html += section("uk_news", "England", "From home", R);
       var sp = R.sports || {};
       var spNotes = R.notes || {};
-      [["premier_league","Premier League"],["england","England Football"],
+      [["premier_league","Premier League"],
        ["f1","Formula 1"],["nba","NBA"]].forEach(function(p){
         if(sp[p[0]] || spNotes[p[0]])
           html += h2(p[1],"Sport")+itemsHtml(sp[p[0]])+

@@ -16,11 +16,11 @@
       "location": "New York, NY",
       "comp": "not disclosed; HRT comp is typically well above insurance bands",
       "meets_target": null,
-      "why": "In-house risk at a top-tier prop trading firm in NYC. A sideways move on title but likely a large step up on comp \u2014 worth a look purely on that basis.",
+      "why": "In-house risk at a top-tier prop trading firm in NYC. A sideways move on title but likely a large step up on comp — worth a look purely on that basis.",
       "url": "https://boards.greenhouse.io/wehrtyou/jobs/6165763"
     },
     {
-      "title": "Director, Regulatory Risk \u2014 Financial Services",
+      "title": "Director, Regulatory Risk — Financial Services",
       "company": "CrossCountry Consulting",
       "location": "New York, NY (hybrid, 3 days on site)",
       "comp": "not disclosed",
@@ -34,7 +34,7 @@
       "location": "United States",
       "comp": "not disclosed",
       "meets_target": null,
-      "why": "Owns the operational resilience framework \u2014 third-party risk, incident response planning, business continuity. Exactly the in-house risk profile you asked to see surfaced.",
+      "why": "Owns the operational resilience framework — third-party risk, incident response planning, business continuity. Exactly the in-house risk profile you asked to see surfaced.",
       "url": "https://jobs.lever.co/cimgroup/6bab0496-9855-423c-ad8a-bb9bb8bf7f86"
     },
     {
@@ -52,7 +52,7 @@
       "location": "United States (remote-friendly)",
       "comp": "not disclosed",
       "meets_target": null,
-      "why": "Building the ERM architecture from the ground up at a healthcare company \u2014 a founding-seat version of the in-house risk role. Healthcare rather than tech, but the mandate is broad.",
+      "why": "Building the ERM architecture from the ground up at a healthcare company — a founding-seat version of the in-house risk role. Healthcare rather than tech, but the mandate is broad.",
       "url": "https://jobs.lever.co/aledade/d14d337b-b195-4a78-98b1-5c476663c856"
     }
   ],
@@ -60,7 +60,7 @@
     {
       "headline": "One ransomware crew now drives half of all cyber claims",
       "source": "At-Bay via Insurance Business",
-      "note": "Concentration like that is a portfolio problem, not a claims problem \u2014 a single group's tooling change moves your whole loss ratio.",
+      "note": "Concentration like that is a portfolio problem, not a claims problem — a single group's tooling change moves your whole loss ratio.",
       "url": "https://www.insurancebusinessmag.com/us/news/cyber/one-ransomware-crew-now-drives-half-of-all-cyber-claims-atbay-573139.aspx"
     },
     {
@@ -78,7 +78,7 @@
     {
       "headline": "Allianz reports cyber claim severity down 50% in 2025 as large firms harden",
       "source": "Beinsure",
-      "note": "Cuts against the Lockton severity data \u2014 the divergence is large corporates improving while SMEs absorb the damage.",
+      "note": "Cuts against the Lockton severity data — the divergence is large corporates improving while SMEs absorb the damage.",
       "url": "https://beinsure.com/n/cyber-news/"
     },
     {
@@ -90,7 +90,7 @@
     {
       "headline": "Invision Cyber launches US book with $10m limits behind Lloyd's syndicates",
       "source": "Beinsure",
-      "note": "Prices off Trend Micro telemetry \u2014 another entrant tying premium directly to observed security posture.",
+      "note": "Prices off Trend Micro telemetry — another entrant tying premium directly to observed security posture.",
       "url": "https://beinsure.com/n/cyber-news/"
     },
     {
@@ -106,44 +106,6 @@
       "url": "https://beinsure.com/n/cyber-news/"
     }
   ],
-  "market_news": [
-    {
-      "headline": "Nasdaq Composite slipped 0.3% Monday after a week up more than 5%",
-      "source": "Yahoo Finance",
-      "note": "Nvidia pulled back; the index gave back a little of a strong week.",
-      "url": "https://finance.yahoo.com/markets/live/stock-market-today-monday-august-10-dow-sp-500-nasdaq-104358890.html"
-    },
-    {
-      "headline": "Oil sharply higher as hopes fade for a Strait of Hormuz deal",
-      "source": "TheStreet",
-      "note": "Straight reversal of last week's optimism, and the main channel from geopolitics into this week's inflation read.",
-      "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-aug-11-2026"
-    },
-    {
-      "headline": "July CPI lands tomorrow, PPI Thursday",
-      "source": "Kiplinger",
-      "note": "The week's two decisive prints for the September meeting.",
-      "url": "https://www.kiplinger.com/investing/economy/this-weeks-economic-calendar"
-    },
-    {
-      "headline": "Odds of a quarter-point hike next month fall to 42% from 55%",
-      "source": "Zacks",
-      "note": "Repriced after Friday's payrolls miss.",
-      "url": "https://sg.finance.yahoo.com/news/stock-market-news-aug-10-085400959.html"
-    },
-    {
-      "headline": "July payrolls fell 23,000 with participation also declining",
-      "source": "Department of Labor",
-      "note": "Both the unemployment rate and the participation rate fell \u2014 a weaker print than the headline alone suggests.",
-      "url": "https://sg.finance.yahoo.com/news/stock-market-news-aug-10-085400959.html"
-    },
-    {
-      "headline": "Nasdaq futures edge higher Tuesday amid US-Iran concerns",
-      "source": "TheStreet",
-      "note": "Indexes remain within reach of all-time highs going into the CPI print.",
-      "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-aug-11-2026"
-    }
-  ],
   "uk_news": [
     {
       "headline": "Burnham and Healey scrap VAT on household electricity from October",
@@ -154,7 +116,7 @@
     {
       "headline": "Healey inherits government debt at roughly 100% of annual output",
       "source": "CNBC",
-      "note": "Borrowing costs sit above most other advanced economies \u2014 the binding constraint on everything else he wants to do.",
+      "note": "Borrowing costs sit above most other advanced economies — the binding constraint on everything else he wants to do.",
       "url": "https://www.cnbc.com/2026/07/21/andy-burnham-john-healey-chancellor-gilts-jamie-dimon.html"
     },
     {
@@ -172,7 +134,7 @@
     {
       "headline": "CPI inflation fell to 2.6% in June from 2.8%",
       "source": "ONS via Hanbury Wealth",
-      "note": "Bailey called the relief temporary given volatile energy prices \u2014 and oil has since turned back up.",
+      "note": "Bailey called the relief temporary given volatile energy prices — and oil has since turned back up.",
       "url": "https://hanburywealth.co.uk/financial-news/economic-review-august-2026/"
     },
     {
@@ -197,7 +159,7 @@
       },
       {
         "headline": "Arteta confirms Saliba and Timber will miss the start",
-        "note": "Timber still weeks from full training, Saliba told to rest a fortnight \u2014 both centre-halves out for the opener.",
+        "note": "Timber still weeks from full training, Saliba told to rest a fortnight — both centre-halves out for the opener.",
         "url": "https://www.premierleague.com/en/news/4450606/latest-premier-league-player-injuries-club-by-club-news"
       },
       {
@@ -216,31 +178,9 @@
         "url": "https://www.skysports.com/football/news/11095/13546618/transfer-news-summer-transfer-window-2026-premier-league-deals-ins-and-outs"
       }
     ],
-    "england": [
-      {
-        "headline": "England finished third at the World Cup, beating France 6-4",
-        "note": "An extraordinary third-place playoff to close the tournament out.",
-        "url": "https://www.aljazeera.com/sports/liveblog/2026/7/18/france-vs-england-live-fifa-world-cup-2026-third-place-playoff"
-      },
-      {
-        "headline": "Semi-final lost 2-1 to Argentina",
-        "note": "Tuchel's side fell one game short of the final.",
-        "url": "https://www.espn.com/soccer/story/_/id/48701061/england-world-cup-2026-schedule-fixtures-results-scores-group-l-how-watch-uk-news-analysis-injuries"
-      },
-      {
-        "headline": "Route there: won Group L, then DR Congo, Mexico and Norway",
-        "note": "Beat Mexico 3-2 at the Estadio Azteca with ten men.",
-        "url": "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_Group_L"
-      },
-      {
-        "headline": "Domestic season resumes before the next international window",
-        "note": "No England fixtures until the autumn; attention returns to club form.",
-        "url": "https://www.englandfootball.com/england/mens-senior-team/FIFA-World-Cup-2026"
-      }
-    ],
     "f1": [
       {
-        "headline": "Summer break \u2014 racing resumes at Zandvoort, 21-23 August",
+        "headline": "Summer break — racing resumes at Zandvoort, 21-23 August",
         "note": "Nothing on track for another ten days.",
         "url": "https://www.motorsport.com/f1/news/what-is-the-f1-summer-break-why-does-it-happen-how-long/10346924/"
       },
@@ -262,7 +202,7 @@
     ],
     "nba": [
       {
-        "headline": "Kawhi Leonard traded to Toronto \u2014 but the deal is frozen",
+        "headline": "Kawhi Leonard traded to Toronto — but the deal is frozen",
         "note": "Clippers get Ingram, Gradey Dick, two firsts, two seconds and a swap. On hold pending the league's investigation into impermissible benefits; Leonard expects to be a Raptor by training camp.",
         "url": "https://www.nba.com/news/4-takeaways-kawhi-leonard-returns-to-toronto-in-reported-trade-with-clippers"
       },
@@ -289,7 +229,7 @@
     ]
   },
   "notes": {
-    "jobs": "Six roles today, all linking to the employer's own posting rather than a job-board search page \u2014 the search change made after yesterday's thin edition."
+    "jobs": "Six roles today, all linking to the employer's own posting rather than a job-board search page — the search change made after yesterday's thin edition."
   },
   "_stale": false
 }

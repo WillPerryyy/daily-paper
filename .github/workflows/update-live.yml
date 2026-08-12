@@ -1,0 +1,57 @@
+name: Refresh paper
+
+# Every three hours. Prices only move once a day, but the market and world
+# headlines come from RSS and go stale quickly — that is the whole reason this
+# runs more often than the daily close.
+on:
+  schedule:
+    - cron: "5 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-paper
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch gate, markets, headlines, weather
+        run: python update_live.py
+
+      - name: Commit if the content actually changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # live.json carries an `updated` timestamp, so the raw file differs on
+          # every run. Hash the content with that field stripped, or this commits
+          # eight times a day whether or not anything moved.
+          HASH_NOW=$(python -c "
+          import json,hashlib
+          d=json.load(open('data/live.json')); d.pop('updated',None)
+          print(hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest())")
+          HASH_PREV=$(git show HEAD:data/live.json 2>/dev/null | python -c "
+          import json,sys,hashlib
+          try:
+              d=json.load(sys.stdin); d.pop('updated',None)
+              print(hashlib.sha256(json.dumps(d,sort_keys=True).encode()).hexdigest())
+          except Exception:
+              print('none')" 2>/dev/null || echo "none")
+          if [ "$HASH_NOW" = "$HASH_PREV" ]; then
+            echo "nothing moved since the last run - not committing"
+            git checkout -- data/live.json
+            exit 0
+          fi
+          CLOSE=$(python -c "import json;print(json.load(open('data/live.json'))['gate'].get('date','?'))")
+          git add data/live.json
+          git commit -m "live: close $CLOSE, headlines refreshed"
+          git push

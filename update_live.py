@@ -139,6 +139,53 @@ def markets():
     return rows
 
 
+FEEDS = {
+    "markets": [("CNBC", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                         "?partnerId=wrss01&id=20910258"),
+                ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex")],
+    "world":   [("BBC", "https://feeds.bbci.co.uk/news/world/rss.xml"),
+                ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
+                ("Guardian", "https://www.theguardian.com/world/rss")],
+}
+
+
+def headlines(limit=9):
+    """Market and geopolitical headlines straight from RSS.
+
+    These used to sit in research.json, which meant they were only as fresh as
+    the last Claude run. RSS needs no LLM, so the Action can refresh them on its
+    own cadence — which is why this file now runs several times a day rather
+    than once after the close.
+    """
+    import xml.etree.ElementTree as ET
+    out = {}
+    for section, feeds in FEEDS.items():
+        items, seen = [], set()
+        per = max(2, limit // len(feeds) + 1)
+        for source, url in feeds:
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                raw = urllib.request.urlopen(req, timeout=25).read()
+                root = ET.fromstring(raw)
+                for it in root.findall(".//item")[:per]:
+                    title = (it.findtext("title") or "").strip()
+                    link = (it.findtext("link") or "").strip()
+                    if not title:
+                        continue
+                    key = title.lower()[:60]
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    items.append({"headline": title, "source": source,
+                                  "url": link,
+                                  "when": (it.findtext("pubDate") or "")[:16]})
+            except Exception as e:  # noqa: BLE001
+                print(f"  feed {source} ({section}) failed: {type(e).__name__}",
+                      file=sys.stderr)
+        out[section] = items[:limit]
+    return out
+
+
 def weather():
     try:
         d = get("https://api.open-meteo.com/v1/forecast?latitude=40.7128"
@@ -173,6 +220,7 @@ def main():
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "gate": g,
         "markets": markets(),
+        "headlines": headlines(),
         "weather": weather(),
         "params": {"rv_thr": P["rv_thr"], "vr_thr": P["vr_thr"],
                    "dd_exit": P["dd_exit"], "dd_reenter": P["dd_reenter"]},
@@ -182,8 +230,10 @@ def main():
         json.dump(payload, f, separators=(",", ":"))
 
     pos = ("TQQQ" if g.get("signal") else "T-BILLS") if g.get("ok") else "ERROR"
+    hl = payload["headlines"]
     print(f"wrote live.json  gate={pos}  close={g.get('date')}  "
           f"markets={len(payload['markets'])}  "
+          f"news={len(hl.get('markets',[]))}  world={len(hl.get('world',[]))}  "
           f"weather={'ok' if payload['weather']['ok'] else 'FAIL'}")
     return 0
 
