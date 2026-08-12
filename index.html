@@ -62,6 +62,13 @@ h2 .kick{font:500 9.5px ui-monospace,monospace;letter-spacing:.13em;
 .verdict .sub{font:400 13px system-ui;color:var(--ink2);margin-top:5px}
 .verdict .tiny{font:400 11px system-ui;color:var(--ink3);margin-top:6px}
 
+.chart{background:var(--card);border:1px solid var(--rule);border-radius:10px;
+  padding:10px 8px 4px;margin-top:10px}
+.chart svg{display:block;width:100%;height:auto}
+.chart .cap{font:400 10.5px system-ui;color:var(--ink3);padding:5px 6px 2px;
+  display:flex;gap:14px;flex-wrap:wrap}
+.chart .cap i{display:inline-block;width:11px;height:8px;border-radius:2px;
+  vertical-align:0;margin-right:5px}
 .gate{background:var(--card);border:1px solid var(--rule);border-radius:10px;
   padding:11px 13px;margin-bottom:7px;display:grid;
   grid-template-columns:18px 1fr auto;gap:10px;align-items:center}
@@ -87,6 +94,7 @@ td.c{text-align:right;font:600 12.5px ui-monospace,monospace;white-space:nowrap;
 .item .h a{color:var(--link);text-decoration:none}
 .item .src{font:600 9.5px ui-monospace,monospace;letter-spacing:.07em;
   text-transform:uppercase;color:var(--ink3);margin-top:3px}
+.item .src .age{color:var(--ink3);font-weight:400}
 .item .meta{font:400 12px system-ui;color:var(--ink2);margin-top:2px}
 .item .n{font:400 12.5px/1.5 system-ui;color:var(--ink2);margin-top:3px}
 
@@ -143,6 +151,56 @@ button:active{opacity:.7}
     return '<h2>'+esc(title)+(kick?'<span class="kick">'+esc(kick)+'</span>':'')+'</h2>';
   }
 
+
+  function chartHtml(h){
+    if(!h || !h.dates || h.dates.length < 20) return "";
+    var W=600, H=150, PL=6, PR=6, PT=8, PB=16, n=h.closes.length;
+    var lo=Math.min.apply(null,h.closes), hi=Math.max.apply(null,h.closes);
+    var pad=(hi-lo)*0.08 || 1; lo-=pad; hi+=pad;
+    var X=function(i){ return PL + i/(n-1)*(W-PL-PR); };
+    var Y=function(v){ return H-PB - (v-lo)/(hi-lo)*(H-PT-PB); };
+
+    // shade every stretch the rule was invested
+    var bands="", i=0;
+    while(i<n){
+      if(h.sig[i]==="1"){
+        var j=i; while(j+1<n && h.sig[j+1]==="1") j++;
+        bands += '<rect x="'+X(i).toFixed(1)+'" y="'+PT+'" width="'+
+          Math.max(X(j)-X(i),1).toFixed(1)+'" height="'+(H-PT-PB)+
+          '" fill="var(--go)" opacity="0.17"/>';
+        i=j+1;
+      } else i++;
+    }
+    var d="M "+h.closes.map(function(c,k){ return X(k).toFixed(1)+","+Y(c).toFixed(1); }).join(" L ");
+    // year ticks
+    var ticks="", seen={};
+    h.dates.forEach(function(dt,k){
+      var m=dt.slice(0,7);
+      if(!seen[m] && (dt.slice(5,7)==="01"||dt.slice(5,7)==="04"||
+                      dt.slice(5,7)==="07"||dt.slice(5,7)==="10")){
+        seen[m]=1;
+        ticks += '<text x="'+X(k).toFixed(1)+'" y="'+(H-4)+
+          '" font-size="9" fill="var(--ink3)" text-anchor="middle">'+
+          dt.slice(0,7)+'</text>';
+      }
+    });
+    var last=h.closes[n-1], inNow=h.sig[n-1]==="1";
+    var pct=Math.round(h.sig.split("").filter(function(c){return c==="1";}).length/n*100);
+    return '<div class="chart"><svg viewBox="0 0 '+W+' '+H+'" role="img" '+
+      'aria-label="QQQ price with the periods the gate was invested shaded">'+
+      bands+ticks+
+      '<path d="'+d+'" fill="none" stroke="var(--ink)" stroke-width="1.6" '+
+      'stroke-linejoin="round"/>'+
+      '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(last).toFixed(1)+'" r="3.2" '+
+      'fill="'+(inNow?"var(--go)":"var(--stop)")+'"/>'+
+      '</svg><div class="cap">'+
+      '<span><i style="background:var(--go);opacity:.35"></i>Gate says hold '+
+      '&mdash; '+pct+'% of the last year</span>'+
+      '<span><i style="background:var(--stop)"></i>Today: '+
+      (inNow?"in":"out")+'</span>'+
+      '<span>QQQ, the index the gate reads</span></div></div>';
+  }
+
   function gateHtml(g, params){
     if(!g || !g.ok){
       return h2("The Gate","Position")+
@@ -168,7 +226,8 @@ button:active{opacity:.7}
     return h2("The Gate","Position")+
       '<div class="verdict '+(hold?"go":"stop")+'">'+
         '<div class="big">'+(hold?"HOLD TQQQ":"HOLD T-BILLS")+'</div>'+
-        '<div class="sub">'+esc(sub)+' Held '+g.held+' sessions.</div>'+
+        '<div class="sub">'+esc(sub)+' Held '+g.held+' sessions'+
+          (g.since?' since '+esc(g.since):'')+'.</div>'+
         '<div class="tiny">From the close of '+esc(g.date)+
           ' &mdash; act at the next one, which is how the rule was tested.</div>'+
       '</div>'+
@@ -179,7 +238,7 @@ button:active{opacity:.7}
             '<div class="note">'+esc(r.note)+'</div></div>'+
           '<div><div class="val">'+esc(r.val)+'</div>'+
             '<div class="thr">'+esc(r.thr)+'</div></div></div>';
-      }).join("");
+      }).join("") + chartHtml(g.history);
   }
 
   function marketsHtml(rows){
@@ -202,9 +261,14 @@ button:active{opacity:.7}
       var src = it.company || it.source || "";
       var meta = [it.location, it.comp].filter(Boolean).join(" &middot; ");
       var note = it.why || it.note || "";
-      if(!note && it.when) note = it.when;
+      var age = "";
+      if(typeof it.age_h === "number")
+        age = it.age_h < 1 ? "just now"
+            : (it.age_h < 24 ? Math.round(it.age_h)+"h ago"
+                             : Math.round(it.age_h/24)+"d ago");
       return '<div class="item"><div class="h">'+head+'</div>'+
-        (src?'<div class="src">'+esc(src)+'</div>':'')+
+        ((src||age)?'<div class="src">'+esc(src)+
+          (age?'<span class="age"> &middot; '+esc(age)+'</span>':'')+'</div>':'')+
         (meta?'<div class="meta">'+meta+'</div>':'')+
         (note?'<div class="n">'+esc(note)+'</div>':'')+'</div>';
     }).join("");
@@ -251,7 +315,6 @@ button:active{opacity:.7}
       html += h2("World","Geopolitics")+itemsHtml(hl.world);
 
     if(R){
-      html += section("jobs", "Roles"+(R.jobs?" ("+R.jobs.length+")":""), "Job scout", R);
       html += section("cyber_intel", "Cyber Insurance", "Industry", R);
       html += section("uk_news", "England", "From home", R);
       var sp = R.sports || {};
@@ -276,7 +339,17 @@ button:active{opacity:.7}
       "computed on QQQ closes. Nothing here is investment advice.";
   }
 
-  function load(){
+  function load(announce){
+    var btn = $("refresh");
+    if(announce){ btn.disabled = true; btn.textContent = "Refreshing…"; }
+    var done = function(ok){
+      if(!announce) return;
+      btn.disabled = false;
+      btn.textContent = ok
+        ? "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+        : "Refresh failed — tap to retry";
+      setTimeout(function(){ btn.textContent = "Refresh"; }, 4000);
+    };
     Promise.all([
       fetch("data/live.json?t="+Date.now(), {cache:"no-store"})
         .then(function(r){ if(!r.ok) throw new Error("live.json HTTP "+r.status); return r.json(); }),
@@ -286,7 +359,9 @@ button:active{opacity:.7}
     ]).then(function(a){
       try { localStorage.setItem(CACHE, JSON.stringify({live:a[0], research:a[1]})); } catch(e){}
       render(a[0], a[1], false);
+      done(true);
     }).catch(function(e){
+      done(false);
       var c = localStorage.getItem(CACHE);
       if(c){
         try { var p = JSON.parse(c); render(p.live, p.research, true); return; } catch(_){}
@@ -296,10 +371,10 @@ button:active{opacity:.7}
     });
   }
 
-  $("refresh").addEventListener("click", load);
+  $("refresh").addEventListener("click", function(){ load(true); });
   var c = localStorage.getItem(CACHE);
   if(c){ try { var p=JSON.parse(c); render(p.live, p.research, true); } catch(e){} }
-  load();
+  load(false);
 })();
 </script>
 </body>

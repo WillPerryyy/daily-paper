@@ -91,21 +91,42 @@ def gate(dates, closes):
         last = dict(date=dates[i], v20=v20, ratio=ratio, dd=dd,
                     g1=g1, g2=g2, g3=g3, sd20=sd(rets[i - P["rv_win"]:i]))
 
-    sig, run = 0, 1
+    # Track the PERSISTED SIGNAL, not the raw combined gates. The signal only
+    # flips after `persist` agreeing days, so it is far steadier: counting the
+    # raw-gate run reported 9 sessions where the real signal had held 44.
+    sig, run, sig_series = 0, 1, []
     for i in range(1, len(comb)):
         run = run + 1 if comb[i] == comb[i - 1] else 1
         if run >= P["persist"]:
             sig = comb[i]
+        sig_series.append(sig)
+
     held = 1
-    for i in range(len(comb) - 2, -1, -1):
-        if comb[i] == comb[-1]:
+    for i in range(len(sig_series) - 2, -1, -1):
+        if sig_series[i] == sig_series[-1]:
             held += 1
         else:
             break
+    # sig_series[k] corresponds to dates[P["vr_slow"] + 1 + k]
+    since = dates[P["vr_slow"] + 1 + (len(sig_series) - held)]
 
     blockers = [n for n, k in [("absolute vol", "g1"), ("vol shock", "g2"),
                                ("drawdown", "g3")] if last[k] == 0]
-    last.update(ok=True, signal=sig, held=held, blockers=blockers)
+
+    # A year of price and signal so the page can shade the periods the rule was
+    # invested. sig is a 0/1 string rather than an array - it is a quarter the
+    # size in JSON and this file is fetched on every page open.
+    span = 252
+    idx0 = P["vr_slow"] + 1
+    hist_dates = dates[idx0:]
+    hist_close = closes[idx0:]
+    hist = {
+        "dates": hist_dates[-span:],
+        "closes": [round(c, 2) for c in hist_close[-span:]],
+        "sig": "".join(str(int(x)) for x in sig_series[-span:]),
+    }
+    last.update(ok=True, signal=sig, held=held, since=since,
+                blockers=blockers, history=hist)
     return last
 
 
@@ -139,50 +160,79 @@ def markets():
     return rows
 
 
+# Feeds are chosen on measured freshness, not on name. The first version of
+# this used a CNBC feed whose median item was 179 HOURS old (7.5 days) and a
+# Yahoo feed carrying no pubDate at all, which is how week-old headlines reached
+# the page. Measured medians at selection: CNBC top 6.7h, CNBC economy 7.8h,
+# MarketWatch 4.7h, BBC World 6.8h, Al Jazeera 4.5h.
 FEEDS = {
-    "markets": [("CNBC", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
-                         "?partnerId=wrss01&id=20910258"),
-                ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex")],
-    "world":   [("BBC", "https://feeds.bbci.co.uk/news/world/rss.xml"),
-                ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
-                ("Guardian", "https://www.theguardian.com/world/rss")],
+    "markets": [
+        ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
+        ("CNBC", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                 "?partnerId=wrss01&id=100003114"),
+        ("CNBC", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                 "?partnerId=wrss01&id=10000664"),
+    ],
+    "world": [
+        ("BBC", "https://feeds.bbci.co.uk/news/world/rss.xml"),
+        ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
+    ],
 }
 
+MAX_AGE_H = 48      # anything older is not news
 
-def headlines(limit=9):
-    """Market and geopolitical headlines straight from RSS.
 
-    These used to sit in research.json, which meant they were only as fresh as
-    the last Claude run. RSS needs no LLM, so the Action can refresh them on its
-    own cadence — which is why this file now runs several times a day rather
-    than once after the close.
+def headlines(limit=8):
+    """Market and geopolitical headlines from RSS, hard-filtered on age.
+
+    Two defences, because picking good feeds once is not enough: an item with
+    no parseable pubDate is dropped rather than trusted, and anything older
+    than MAX_AGE_H is dropped whatever feed it came from. Sorted newest first,
+    and each item carries its age so the page can show it and you can see decay
+    rather than infer it.
     """
+    import email.utils
     import xml.etree.ElementTree as ET
+    now = datetime.now(timezone.utc)
     out = {}
     for section, feeds in FEEDS.items():
         items, seen = [], set()
-        per = max(2, limit // len(feeds) + 1)
         for source, url in feeds:
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-                raw = urllib.request.urlopen(req, timeout=25).read()
-                root = ET.fromstring(raw)
-                for it in root.findall(".//item")[:per]:
+                root = ET.fromstring(urllib.request.urlopen(req, timeout=25).read())
+                for it in root.findall(".//item")[:15]:
                     title = (it.findtext("title") or "").strip()
-                    link = (it.findtext("link") or "").strip()
-                    if not title:
+                    pd = it.findtext("pubDate")
+                    if not title or not pd:
+                        continue
+                    try:
+                        dt = email.utils.parsedate_to_datetime(pd)
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                    except Exception:  # noqa: BLE001
+                        continue
+                    age = (now - dt).total_seconds() / 3600
+                    if age < 0 or age > MAX_AGE_H:
                         continue
                     key = title.lower()[:60]
                     if key in seen:
                         continue
                     seen.add(key)
                     items.append({"headline": title, "source": source,
-                                  "url": link,
-                                  "when": (it.findtext("pubDate") or "")[:16]})
+                                  "url": (it.findtext("link") or "").strip(),
+                                  "age_h": round(age, 1)})
             except Exception as e:  # noqa: BLE001
                 print(f"  feed {source} ({section}) failed: {type(e).__name__}",
                       file=sys.stderr)
+        items.sort(key=lambda x: x["age_h"])
         out[section] = items[:limit]
+        if items:
+            print(f"  {section}: {len(out[section])} items, "
+                  f"newest {items[0]['age_h']:.1f}h, oldest kept "
+                  f"{out[section][-1]['age_h']:.1f}h")
+        else:
+            print(f"  {section}: NO items inside {MAX_AGE_H}h", file=sys.stderr)
     return out
 
 
@@ -210,7 +260,9 @@ def weather():
 
 
 def main():
-    qqq = chart("QQQ", "3y")[-420:]
+    # 250 sessions are consumed warming up the gates, so fetch enough that a
+    # full year of signal history survives on the other side.
+    qqq = chart("QQQ", "3y")[-520:]
     if len(qqq) < 300:
         print(f"FAIL: only {len(qqq)} QQQ sessions", file=sys.stderr)
         return 1

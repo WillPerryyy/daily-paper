@@ -1,61 +1,5 @@
 {
   "date": "2026-08-11",
-  "jobs": [
-    {
-      "title": "Head of Cyber Underwriting, North America",
-      "company": "Liberty Mutual Insurance",
-      "location": "United States",
-      "comp": "not disclosed",
-      "meets_target": null,
-      "why": "Core-domain and a genuine step up: running cyber underwriting for a major carrier across North America. The most directly relevant role surfaced today.",
-      "url": "https://themuse.com/jobs/libertymutualinsurance/head-of-cyber-underwriting-north-america-a152a6"
-    },
-    {
-      "title": "Risk Manager, Equities",
-      "company": "Hudson River Trading",
-      "location": "New York, NY",
-      "comp": "not disclosed; HRT comp is typically well above insurance bands",
-      "meets_target": null,
-      "why": "In-house risk at a top-tier prop trading firm in NYC. A sideways move on title but likely a large step up on comp — worth a look purely on that basis.",
-      "url": "https://boards.greenhouse.io/wehrtyou/jobs/6165763"
-    },
-    {
-      "title": "Director, Regulatory Risk — Financial Services",
-      "company": "CrossCountry Consulting",
-      "location": "New York, NY (hybrid, 3 days on site)",
-      "comp": "not disclosed",
-      "meets_target": null,
-      "why": "Consulting-side risk leadership in NYC. Advisory rather than in-house, but the regulatory-risk focus maps closely onto your underwriting background.",
-      "url": "https://jobs.lever.co/crosscountry-consulting/86edb90a-482c-4a36-acea-8191605580c2"
-    },
-    {
-      "title": "Director, Business Operations (Risk Management)",
-      "company": "CIM Group",
-      "location": "United States",
-      "comp": "not disclosed",
-      "meets_target": null,
-      "why": "Owns the operational resilience framework — third-party risk, incident response planning, business continuity. Exactly the in-house risk profile you asked to see surfaced.",
-      "url": "https://jobs.lever.co/cimgroup/6bab0496-9855-423c-ad8a-bb9bb8bf7f86"
-    },
-    {
-      "title": "Senior Director, Enterprise Risk Programs and Intelligence",
-      "company": "Jobgether (fintech client)",
-      "location": "United States",
-      "comp": "not disclosed",
-      "meets_target": null,
-      "why": "Senior ERM leadership in a fintech environment. Posted through a talent platform rather than the employer directly, so confirm who the actual hiring company is before investing time.",
-      "url": "https://jobs.lever.co/jobgether/6f8b7141-fd62-42fe-8a1c-a89534d3f0eb"
-    },
-    {
-      "title": "Director, Enterprise Risk Management",
-      "company": "Aledade",
-      "location": "United States (remote-friendly)",
-      "comp": "not disclosed",
-      "meets_target": null,
-      "why": "Building the ERM architecture from the ground up at a healthcare company — a founding-seat version of the in-house risk role. Healthcare rather than tech, but the mandate is broad.",
-      "url": "https://jobs.lever.co/aledade/d14d337b-b195-4a78-98b1-5c476663c856"
-    }
-  ],
   "cyber_intel": [
     {
       "headline": "One ransomware crew now drives half of all cyber claims",
@@ -228,8 +172,6 @@
       }
     ]
   },
-  "notes": {
-    "jobs": "Six roles today, all linking to the employer's own posting rather than a job-board search page — the search change made after yesterday's thin edition."
-  },
+  "notes": {},
   "_stale": false
 }
