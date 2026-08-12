@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="The Paper">
+<meta name="theme-color" content="#faf8f4">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<title>The Daily Paper</title>
+<style>
+:root{
+  color-scheme:light;
+  --paper:#faf8f4; --card:#ffffff; --sunk:#f1eee7; --rule:#d9d5cb;
+  --ink:#14161a; --ink2:#3d434c; --ink3:#767d87;
+  --go:#1c6448; --stop:#a33326; --warn:#8a6d1f; --link:#1b3a6b;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#101211; --card:#191c1b; --sunk:#0b0d0c; --rule:#282d2b;
+    --ink:#e9ece9; --ink2:#a9b1ad; --ink3:#79817d;
+    --go:#54b89e; --stop:#e0795c; --warn:#c9a94a; --link:#7fa8dd;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#101211; --card:#191c1b; --sunk:#0b0d0c; --rule:#282d2b;
+  --ink:#e9ece9; --ink2:#a9b1ad; --ink3:#79817d;
+  --go:#54b89e; --stop:#e0795c; --warn:#c9a94a; --link:#7fa8dd;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:620px;margin:0 auto;
+  padding:calc(18px + env(safe-area-inset-top)) 16px calc(50px + env(safe-area-inset-bottom))}
+
+.mast{text-align:center;margin-bottom:6px}
+.mast .date{font:400 10.5px ui-monospace,Menlo,monospace;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink3)}
+.mast h1{font:700 clamp(28px,8vw,40px)/1.05 Georgia,"Times New Roman",serif;
+  margin:5px 0 7px;letter-spacing:-.5px}
+.mast .hr{border-top:3px double var(--ink);border-bottom:1px solid var(--ink);height:4px}
+
+h2{font:700 17px/1.2 Georgia,serif;margin:30px 0 10px;
+  border-bottom:2px solid var(--ink);padding-bottom:5px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+h2 .kick{font:500 9.5px ui-monospace,monospace;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink3);border:0}
+
+.verdict{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  border-left-width:4px;padding:16px 17px;margin-bottom:10px}
+.verdict.go{border-left-color:var(--go)}
+.verdict.stop{border-left-color:var(--stop)}
+.verdict.unk{border-left-color:var(--warn)}
+.verdict .big{font:700 26px/1.1 Georgia,serif}
+.go .big{color:var(--go)} .stop .big{color:var(--stop)} .unk .big{color:var(--warn)}
+.verdict .sub{font:400 13px system-ui;color:var(--ink2);margin-top:5px}
+.verdict .tiny{font:400 11px system-ui;color:var(--ink3);margin-top:6px}
+
+.gate{background:var(--card);border:1px solid var(--rule);border-radius:10px;
+  padding:11px 13px;margin-bottom:7px;display:grid;
+  grid-template-columns:18px 1fr auto;gap:10px;align-items:center}
+.gate .n{font:600 11px ui-monospace,monospace;color:var(--ink3)}
+.gate .nm{font:500 13.5px system-ui}
+.gate .note{font:400 11px system-ui;color:var(--ink3);margin-top:1px}
+.gate .val{font:600 15px ui-monospace,Menlo,monospace;text-align:right;white-space:nowrap}
+.gate .thr{font:400 10px ui-monospace,monospace;color:var(--ink3);text-align:right}
+.pass .val{color:var(--go)} .block .val{color:var(--stop)}
+
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;
+  background:var(--card);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+td{padding:8px 12px;border-bottom:1px solid var(--rule);font-size:13.5px}
+tr:last-child td{border-bottom:0}
+td.v{text-align:right;font:600 13.5px ui-monospace,Menlo,monospace;white-space:nowrap}
+td.c{text-align:right;font:600 12.5px ui-monospace,monospace;white-space:nowrap;width:1%}
+.up{color:var(--go)} .dn{color:var(--stop)}
+.wk{font-weight:400;font-size:10.5px;color:var(--ink3)}
+
+.item{padding:10px 0;border-bottom:1px solid var(--rule)}
+.item:last-child{border-bottom:0}
+.item .h{font:600 14.5px/1.4 Georgia,serif}
+.item .h a{color:var(--link);text-decoration:none}
+.item .src{font:600 9.5px ui-monospace,monospace;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink3);margin-top:3px}
+.item .meta{font:400 12px system-ui;color:var(--ink2);margin-top:2px}
+.item .n{font:400 12.5px/1.5 system-ui;color:var(--ink2);margin-top:3px}
+
+.wx{background:var(--card);border:1px solid var(--rule);border-radius:10px;
+  padding:13px 15px;display:flex;gap:14px;align-items:center}
+.wx .t{font:700 30px Georgia,serif}
+.wx .d{font:400 13px system-ui;color:var(--ink2)}
+.wx .d b{color:var(--ink)}
+.wx .s{font:400 11px system-ui;color:var(--ink3);margin-top:2px}
+
+.msg{border-radius:10px;padding:11px 14px;margin:10px 0;font:400 12.5px system-ui}
+.msg.warn{background:color-mix(in srgb,var(--warn) 12%,var(--card));
+  border:1px solid color-mix(in srgb,var(--warn) 38%,var(--rule))}
+.msg.err{background:color-mix(in srgb,var(--stop) 11%,var(--card));
+  border:1px solid color-mix(in srgb,var(--stop) 36%,var(--rule))}
+button{appearance:none;width:100%;border:1px solid var(--rule);background:var(--card);
+  color:var(--ink);font:600 14px system-ui;padding:13px;border-radius:11px;
+  margin-top:16px;cursor:pointer}
+button:active{opacity:.7}
+.foot{font:400 11px/1.55 system-ui;color:var(--ink3);margin-top:22px;
+  border-top:1px solid var(--rule);padding-top:12px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--ink3);
+  border-top-color:transparent;border-radius:50%;animation:s .7s linear infinite;
+  vertical-align:-1px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="mast">
+    <div class="date" id="date"></div>
+    <h1>The Daily Paper</h1>
+    <div class="hr"></div>
+  </div>
+  <div id="body"><p style="color:var(--ink3);font-size:13px;padding:20px 0">
+    <span class="spin"></span> Loading…</p></div>
+  <button id="refresh">Refresh</button>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+(function () {
+  var $ = function(i){ return document.getElementById(i); };
+  var CACHE = "paper.cache";
+
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+  function h2(title, kick){
+    return '<h2>'+esc(title)+(kick?'<span class="kick">'+esc(kick)+'</span>':'')+'</h2>';
+  }
+
+  function gateHtml(g, params){
+    if(!g || !g.ok){
+      return h2("The Gate","Position")+
+        '<div class="verdict unk"><div class="big">UNAVAILABLE</div>'+
+        '<div class="sub">'+esc((g&&g.error)||"No reading produced.")+'</div></div>';
+    }
+    var hold = g.signal === 1;
+    var sub = g.blockers && g.blockers.length
+      ? "Blocked by "+g.blockers.join(", ")+"."
+      : "All three gates pass.";
+    var trip = (params.rv_thr/Math.sqrt(252)*100).toFixed(3);
+    var rows = [
+      {n:1,nm:"Absolute volatility",val:(g.v20*100).toFixed(2)+"%",
+       thr:"< "+(params.rv_thr*100).toFixed(0)+"%",ok:g.g1,
+       note:"trips above "+trip+"% daily sigma (now "+(g.sd20*100).toFixed(3)+"%)"},
+      {n:2,nm:"Volatility shock",val:g.ratio.toFixed(3),
+       thr:"< "+params.vr_thr.toFixed(2),ok:g.g2,
+       note:"20-day vol against its own 250-day baseline"},
+      {n:3,nm:"Drawdown",val:(g.dd*100).toFixed(2)+"%",
+       thr:"exit < -"+(params.dd_exit*100).toFixed(0)+"%",ok:g.g3,
+       note:((params.dd_exit+g.dd)*100).toFixed(1)+" pts of further fall before it exits"}
+    ];
+    return h2("The Gate","Position")+
+      '<div class="verdict '+(hold?"go":"stop")+'">'+
+        '<div class="big">'+(hold?"HOLD TQQQ":"HOLD T-BILLS")+'</div>'+
+        '<div class="sub">'+esc(sub)+' Held '+g.held+' sessions.</div>'+
+        '<div class="tiny">From the close of '+esc(g.date)+
+          ' &mdash; act at the next one, which is how the rule was tested.</div>'+
+      '</div>'+
+      rows.map(function(r){
+        return '<div class="gate '+(r.ok?"pass":"block")+'">'+
+          '<div class="n">'+r.n+'</div>'+
+          '<div><div class="nm">'+esc(r.nm)+'</div>'+
+            '<div class="note">'+esc(r.note)+'</div></div>'+
+          '<div><div class="val">'+esc(r.val)+'</div>'+
+            '<div class="thr">'+esc(r.thr)+'</div></div></div>';
+      }).join("");
+  }
+
+  function marketsHtml(rows){
+    if(!rows || !rows.length) return "";
+    return h2("Markets","Last close")+'<table><tbody>'+rows.map(function(r){
+      var cls = r.chg >= 0 ? "up" : "dn", sign = r.chg >= 0 ? "+" : "";
+      var wk = (r.wk === null || r.wk === undefined) ? "" :
+        ' <span class="wk">5d '+(r.wk>=0?"+":"")+r.wk.toFixed(1)+'%</span>';
+      return '<tr><td>'+esc(r.label)+'</td>'+
+        '<td class="v">'+esc(r.value)+'</td>'+
+        '<td class="c '+cls+'">'+sign+r.chg.toFixed(2)+'%'+wk+'</td></tr>';
+    }).join("")+'</tbody></table>';
+  }
+
+  function itemsHtml(items){
+    if(!items || !items.length) return '<div class="item"><div class="n">Nothing today.</div></div>';
+    return items.map(function(it){
+      var head = esc(it.title || it.headline || "—");
+      if(it.url) head = '<a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+head+'</a>';
+      var src = it.company || it.source || "";
+      var meta = [it.location, it.comp].filter(Boolean).join(" &middot; ");
+      var note = it.why || it.note || "";
+      return '<div class="item"><div class="h">'+head+'</div>'+
+        (src?'<div class="src">'+esc(src)+'</div>':'')+
+        (meta?'<div class="meta">'+meta+'</div>':'')+
+        (note?'<div class="n">'+esc(note)+'</div>':'')+'</div>';
+    }).join("");
+  }
+
+  function section(key, title, kick, R){
+    var items = R[key];
+    var note = (R.notes||{})[key];
+    if(!items && !note) return "";
+    return h2(title, kick)+itemsHtml(items)+
+      (note?'<div class="msg warn">'+esc(note)+'</div>':"");
+  }
+
+  function weatherHtml(w){
+    if(!w || !w.ok) return "";
+    return h2("New York","Weather")+
+      '<div class="wx"><div class="t">'+w.now+'&deg;</div><div>'+
+      '<div class="d"><b>'+esc(w.desc)+'</b> &mdash; high '+w.high+'&deg;, low '+
+      w.low+'&deg;, '+w.precip+'% chance of rain. Wind '+w.wind+' mph.</div>'+
+      '<div class="s">Sunset '+esc(w.sunset)+'. Tomorrow: '+esc(w.tmw_desc)+
+      ', '+w.tmw_high+'&deg;.</div></div></div>';
+  }
+
+  function render(live, R, offline){
+    var d = new Date();
+    $("date").textContent = d.toLocaleDateString("en-GB",
+      {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+
+    var html = "";
+    if(offline) html += '<div class="msg warn">Offline &mdash; showing the last '+
+      'edition you loaded. Refresh when you have signal.</div>';
+
+    var today = d.toISOString().slice(0,10);
+    if(R && R.date && R.date !== today) html += '<div class="msg warn">'+
+      'The written sections are from '+esc(R.date)+', not today. Gate, markets '+
+      'and weather above are current.</div>';
+
+    html += gateHtml(live.gate, live.params || {rv_thr:0.35,vr_thr:1.10,dd_exit:0.20});
+    html += marketsHtml(live.markets);
+    if(R){
+      html += section("jobs", "Roles"+(R.jobs?" ("+R.jobs.length+")":""), "Job scout", R);
+      html += section("cyber_intel", "Cyber Insurance", "Industry", R);
+      html += section("market_news", "Market News", "Overnight", R);
+      html += section("uk_news", "England", "From home", R);
+      var sp = R.sports || {};
+      var spNotes = R.notes || {};
+      [["premier_league","Premier League"],["england","England Football"],
+       ["f1","Formula 1"],["nba","NBA"]].forEach(function(p){
+        if(sp[p[0]] || spNotes[p[0]])
+          html += h2(p[1],"Sport")+itemsHtml(sp[p[0]])+
+            (spNotes[p[0]]?'<div class="msg warn">'+esc(spNotes[p[0]])+'</div>':"");
+      });
+    } else {
+      html += h2("Dispatches","Today")+
+        '<div class="msg warn">No written sections in this edition. The gate, '+
+        'markets and weather above are still current.</div>';
+    }
+    html += weatherHtml(live.weather);
+    $("body").innerHTML = html;
+
+    $("foot").innerHTML = "Prices and weather refreshed "+
+      esc((live.updated||"").replace("T"," ").replace("Z"," UTC"))+
+      ". Gate logic is the tested rule from <code>tqqq-strategy/spec.py</code>, "+
+      "computed on QQQ closes. Nothing here is investment advice.";
+  }
+
+  function load(){
+    Promise.all([
+      fetch("data/live.json?t="+Date.now(), {cache:"no-store"})
+        .then(function(r){ if(!r.ok) throw new Error("live.json HTTP "+r.status); return r.json(); }),
+      fetch("data/research.json?t="+Date.now(), {cache:"no-store"})
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .catch(function(){ return null; })
+    ]).then(function(a){
+      try { localStorage.setItem(CACHE, JSON.stringify({live:a[0], research:a[1]})); } catch(e){}
+      render(a[0], a[1], false);
+    }).catch(function(e){
+      var c = localStorage.getItem(CACHE);
+      if(c){
+        try { var p = JSON.parse(c); render(p.live, p.research, true); return; } catch(_){}
+      }
+      $("body").innerHTML = '<div class="msg err">Could not load the edition: '+
+        esc(e.message||e)+'</div>';
+    });
+  }
+
+  $("refresh").addEventListener("click", load);
+  var c = localStorage.getItem(CACHE);
+  if(c){ try { var p=JSON.parse(c); render(p.live, p.research, true); } catch(e){} }
+  load();
+})();
+</script>
+</body>
+</html>

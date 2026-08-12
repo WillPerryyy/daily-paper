@@ -1,0 +1,295 @@
+{
+  "date": "2026-08-11",
+  "jobs": [
+    {
+      "title": "Head of Cyber Underwriting, North America",
+      "company": "Liberty Mutual Insurance",
+      "location": "United States",
+      "comp": "not disclosed",
+      "meets_target": null,
+      "why": "Core-domain and a genuine step up: running cyber underwriting for a major carrier across North America. The most directly relevant role surfaced today.",
+      "url": "https://themuse.com/jobs/libertymutualinsurance/head-of-cyber-underwriting-north-america-a152a6"
+    },
+    {
+      "title": "Risk Manager, Equities",
+      "company": "Hudson River Trading",
+      "location": "New York, NY",
+      "comp": "not disclosed; HRT comp is typically well above insurance bands",
+      "meets_target": null,
+      "why": "In-house risk at a top-tier prop trading firm in NYC. A sideways move on title but likely a large step up on comp \u2014 worth a look purely on that basis.",
+      "url": "https://boards.greenhouse.io/wehrtyou/jobs/6165763"
+    },
+    {
+      "title": "Director, Regulatory Risk \u2014 Financial Services",
+      "company": "CrossCountry Consulting",
+      "location": "New York, NY (hybrid, 3 days on site)",
+      "comp": "not disclosed",
+      "meets_target": null,
+      "why": "Consulting-side risk leadership in NYC. Advisory rather than in-house, but the regulatory-risk focus maps closely onto your underwriting background.",
+      "url": "https://jobs.lever.co/crosscountry-consulting/86edb90a-482c-4a36-acea-8191605580c2"
+    },
+    {
+      "title": "Director, Business Operations (Risk Management)",
+      "company": "CIM Group",
+      "location": "United States",
+      "comp": "not disclosed",
+      "meets_target": null,
+      "why": "Owns the operational resilience framework \u2014 third-party risk, incident response planning, business continuity. Exactly the in-house risk profile you asked to see surfaced.",
+      "url": "https://jobs.lever.co/cimgroup/6bab0496-9855-423c-ad8a-bb9bb8bf7f86"
+    },
+    {
+      "title": "Senior Director, Enterprise Risk Programs and Intelligence",
+      "company": "Jobgether (fintech client)",
+      "location": "United States",
+      "comp": "not disclosed",
+      "meets_target": null,
+      "why": "Senior ERM leadership in a fintech environment. Posted through a talent platform rather than the employer directly, so confirm who the actual hiring company is before investing time.",
+      "url": "https://jobs.lever.co/jobgether/6f8b7141-fd62-42fe-8a1c-a89534d3f0eb"
+    },
+    {
+      "title": "Director, Enterprise Risk Management",
+      "company": "Aledade",
+      "location": "United States (remote-friendly)",
+      "comp": "not disclosed",
+      "meets_target": null,
+      "why": "Building the ERM architecture from the ground up at a healthcare company \u2014 a founding-seat version of the in-house risk role. Healthcare rather than tech, but the mandate is broad.",
+      "url": "https://jobs.lever.co/aledade/d14d337b-b195-4a78-98b1-5c476663c856"
+    }
+  ],
+  "cyber_intel": [
+    {
+      "headline": "One ransomware crew now drives half of all cyber claims",
+      "source": "At-Bay via Insurance Business",
+      "note": "Concentration like that is a portfolio problem, not a claims problem \u2014 a single group's tooling change moves your whole loss ratio.",
+      "url": "https://www.insurancebusinessmag.com/us/news/cyber/one-ransomware-crew-now-drives-half-of-all-cyber-claims-atbay-573139.aspx"
+    },
+    {
+      "headline": "73% of 2025 ransomware attacks began at a VPN, SonicWall linked to 27% of claims",
+      "source": "Beinsure",
+      "note": "First time SonicWall has topped the list. A concrete underwriting question to be asking on every submission.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    },
+    {
+      "headline": "Salesloft-Drift OAuth breach hits 700 firms",
+      "source": "Beinsure",
+      "note": "SaaS supply-chain exposure that insurers now have to treat as systemic rather than idiosyncratic.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    },
+    {
+      "headline": "Allianz reports cyber claim severity down 50% in 2025 as large firms harden",
+      "source": "Beinsure",
+      "note": "Cuts against the Lockton severity data \u2014 the divergence is large corporates improving while SMEs absorb the damage.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    },
+    {
+      "headline": "New York DFS fines eight auto insurers $19m over weak cyber controls",
+      "source": "Beinsure",
+      "note": "Regulator going after insurers' own security, not their insureds'. Relevant to any carrier operating in NY.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    },
+    {
+      "headline": "Invision Cyber launches US book with $10m limits behind Lloyd's syndicates",
+      "source": "Beinsure",
+      "note": "Prices off Trend Micro telemetry \u2014 another entrant tying premium directly to observed security posture.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    },
+    {
+      "headline": "Ransomware crews now attach AI-generated legal exposure reports to ransom notes",
+      "source": "Beinsure",
+      "note": "Manufactured estimates of regulatory fines and breach scope, used to raise pressure to pay.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    },
+    {
+      "headline": "Global insurtech funding up 19.5% to $5.1bn",
+      "source": "Beinsure",
+      "note": "Capital still arriving despite the soft rate environment.",
+      "url": "https://beinsure.com/n/cyber-news/"
+    }
+  ],
+  "market_news": [
+    {
+      "headline": "Nasdaq Composite slipped 0.3% Monday after a week up more than 5%",
+      "source": "Yahoo Finance",
+      "note": "Nvidia pulled back; the index gave back a little of a strong week.",
+      "url": "https://finance.yahoo.com/markets/live/stock-market-today-monday-august-10-dow-sp-500-nasdaq-104358890.html"
+    },
+    {
+      "headline": "Oil sharply higher as hopes fade for a Strait of Hormuz deal",
+      "source": "TheStreet",
+      "note": "Straight reversal of last week's optimism, and the main channel from geopolitics into this week's inflation read.",
+      "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-aug-11-2026"
+    },
+    {
+      "headline": "July CPI lands tomorrow, PPI Thursday",
+      "source": "Kiplinger",
+      "note": "The week's two decisive prints for the September meeting.",
+      "url": "https://www.kiplinger.com/investing/economy/this-weeks-economic-calendar"
+    },
+    {
+      "headline": "Odds of a quarter-point hike next month fall to 42% from 55%",
+      "source": "Zacks",
+      "note": "Repriced after Friday's payrolls miss.",
+      "url": "https://sg.finance.yahoo.com/news/stock-market-news-aug-10-085400959.html"
+    },
+    {
+      "headline": "July payrolls fell 23,000 with participation also declining",
+      "source": "Department of Labor",
+      "note": "Both the unemployment rate and the participation rate fell \u2014 a weaker print than the headline alone suggests.",
+      "url": "https://sg.finance.yahoo.com/news/stock-market-news-aug-10-085400959.html"
+    },
+    {
+      "headline": "Nasdaq futures edge higher Tuesday amid US-Iran concerns",
+      "source": "TheStreet",
+      "note": "Indexes remain within reach of all-time highs going into the CPI print.",
+      "url": "https://www.thestreet.com/stock-market-today/stock-market-today-dow-jones-sp-500-nasdaq-updates-aug-11-2026"
+    }
+  ],
+  "uk_news": [
+    {
+      "headline": "Burnham and Healey scrap VAT on household electricity from October",
+      "source": "CNBC",
+      "note": "Cut from 5% to zero, funded by scrapping the Digital ID programme.",
+      "url": "https://www.cnbc.com/2026/07/21/andy-burnham-john-healey-chancellor-gilts-jamie-dimon.html"
+    },
+    {
+      "headline": "Healey inherits government debt at roughly 100% of annual output",
+      "source": "CNBC",
+      "note": "Borrowing costs sit above most other advanced economies \u2014 the binding constraint on everything else he wants to do.",
+      "url": "https://www.cnbc.com/2026/07/21/andy-burnham-john-healey-chancellor-gilts-jamie-dimon.html"
+    },
+    {
+      "headline": "Burnham becomes the UK's seventh prime minister in ten years",
+      "source": "CNBC",
+      "note": "Pledging rapid house building alongside cost-of-living measures.",
+      "url": "https://www.cnbc.com/2026/07/21/andy-burnham-john-healey-chancellor-gilts-jamie-dimon.html"
+    },
+    {
+      "headline": "Bank of England holds Bank Rate at 3.75%, MPC split 6-3",
+      "source": "Bank of England",
+      "note": "Decision taken 30 July; rates could still rise if Middle East energy pressure persists.",
+      "url": "https://www.bankofengland.co.uk/events/2026/august/agencies-monetary-policy-briefing"
+    },
+    {
+      "headline": "CPI inflation fell to 2.6% in June from 2.8%",
+      "source": "ONS via Hanbury Wealth",
+      "note": "Bailey called the relief temporary given volatile energy prices \u2014 and oil has since turned back up.",
+      "url": "https://hanburywealth.co.uk/financial-news/economic-review-august-2026/"
+    },
+    {
+      "headline": "Budget confirmed for 28 October",
+      "source": "Primary Finance Group",
+      "note": "Lands alongside a fresh OBR forecast, and will be Healey's first.",
+      "url": "https://primaryfinancegroup.co.uk/2026/08/05/news-in-review-96/"
+    },
+    {
+      "headline": "FSB Small Business Index at a record low net balance of -14%",
+      "source": "Federation of Small Businesses",
+      "note": "Just 18% of small firms expect to grow; 32% expect to shrink, sell or close.",
+      "url": "https://primaryfinancegroup.co.uk/2026/08/05/news-in-review-96/"
+    }
+  ],
+  "sports": {
+    "premier_league": [
+      {
+        "headline": "Season opens 21 August, pushed back a week by the summer World Cup",
+        "note": "Arsenal defend the title; the final matchweek shifts back correspondingly.",
+        "url": "https://www.espn.com/soccer/story/_/id/48944912/premier-league-efl-summer-transfer-window-2026-dates-does-open-deadline-day"
+      },
+      {
+        "headline": "Arteta confirms Saliba and Timber will miss the start",
+        "note": "Timber still weeks from full training, Saliba told to rest a fortnight \u2014 both centre-halves out for the opener.",
+        "url": "https://www.premierleague.com/en/news/4450606/latest-premier-league-player-injuries-club-by-club-news"
+      },
+      {
+        "headline": "Joe Gomez out around a month with a muscle injury",
+        "note": "Picked up in Liverpool's first pre-season match; misses the opener against Newcastle.",
+        "url": "https://www.skysports.com/football/news/11661/13567456/premier-league-injuries-latest-news-injury-table-suspension-tracker-and-fpl-updates-for-every-club"
+      },
+      {
+        "headline": "Bournemouth lose Eli Junior Kroupi for three to four months",
+        "note": "Fifth metatarsal fracture requiring surgery.",
+        "url": "https://www.premierleague.com/en/latest-player-injuries"
+      },
+      {
+        "headline": "Transfer window closes 1 September at 11pm",
+        "note": "Three weeks left; Leeds have already broken the British goalkeeper record for James Trafford.",
+        "url": "https://www.skysports.com/football/news/11095/13546618/transfer-news-summer-transfer-window-2026-premier-league-deals-ins-and-outs"
+      }
+    ],
+    "england": [
+      {
+        "headline": "England finished third at the World Cup, beating France 6-4",
+        "note": "An extraordinary third-place playoff to close the tournament out.",
+        "url": "https://www.aljazeera.com/sports/liveblog/2026/7/18/france-vs-england-live-fifa-world-cup-2026-third-place-playoff"
+      },
+      {
+        "headline": "Semi-final lost 2-1 to Argentina",
+        "note": "Tuchel's side fell one game short of the final.",
+        "url": "https://www.espn.com/soccer/story/_/id/48701061/england-world-cup-2026-schedule-fixtures-results-scores-group-l-how-watch-uk-news-analysis-injuries"
+      },
+      {
+        "headline": "Route there: won Group L, then DR Congo, Mexico and Norway",
+        "note": "Beat Mexico 3-2 at the Estadio Azteca with ten men.",
+        "url": "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_Group_L"
+      },
+      {
+        "headline": "Domestic season resumes before the next international window",
+        "note": "No England fixtures until the autumn; attention returns to club form.",
+        "url": "https://www.englandfootball.com/england/mens-senior-team/FIFA-World-Cup-2026"
+      }
+    ],
+    "f1": [
+      {
+        "headline": "Summer break \u2014 racing resumes at Zandvoort, 21-23 August",
+        "note": "Nothing on track for another ten days.",
+        "url": "https://www.motorsport.com/f1/news/what-is-the-f1-summer-break-why-does-it-happen-how-long/10346924/"
+      },
+      {
+        "headline": "Antonelli leads the championship on 219 points",
+        "note": "Hamilton second on 169, Russell third on 160.",
+        "url": "https://www.gpfans.com/en/f1-news/1088257/f1-standings-2026-latest-points-table-hungarian-grand-prix/"
+      },
+      {
+        "headline": "Norris took his first win of the season in Hungary",
+        "note": "Started on pole, was jumped by Piastri at the start, then took it back.",
+        "url": "https://www.forbes.com/sites/yaraelshebiny/2026/07/26/f1-standings-2026-after-the-hungarian-grand-prix/"
+      },
+      {
+        "headline": "Hamilton 50 points adrift going into the second half",
+        "note": "A two-win gap with ten rounds still to run.",
+        "url": "https://www.gpfans.com/en/f1-news/1088257/f1-standings-2026-latest-points-table-hungarian-grand-prix/"
+      }
+    ],
+    "nba": [
+      {
+        "headline": "Kawhi Leonard traded to Toronto \u2014 but the deal is frozen",
+        "note": "Clippers get Ingram, Gradey Dick, two firsts, two seconds and a swap. On hold pending the league's investigation into impermissible benefits; Leonard expects to be a Raptor by training camp.",
+        "url": "https://www.nba.com/news/4-takeaways-kawhi-leonard-returns-to-toronto-in-reported-trade-with-clippers"
+      },
+      {
+        "headline": "Donovan Mitchell signs a four-year, $273m max extension with Cleveland",
+        "note": "Agreed Tuesday morning.",
+        "url": "https://www.espn.com/nba/story/_/id/48377855/2026-nba-buzz-latest-live-updates-news-intel-nba-draft-offseason"
+      },
+      {
+        "headline": "Lakers confirm LeBron James is leaving after eight years",
+        "note": "Franchise released a statement on the departure.",
+        "url": "https://www.espn.com/nba/story/_/id/48377855/2026-nba-buzz-latest-live-updates-news-intel-nba-draft-offseason"
+      },
+      {
+        "headline": "Ja Morant to Portland for Jerami Grant and Kris Murray",
+        "note": "Memphis moves on from its franchise guard.",
+        "url": "https://www.olympics.com/en/news/nba-trade-tracker-2026-live-free-agency"
+      },
+      {
+        "headline": "Giannis Antetokounmpo to Miami headlines the offseason",
+        "note": "Four players, four first-round picks and a swap went to Milwaukee.",
+        "url": "https://www.espn.com/nba/story/_/id/48957844/nba-trade-tracker-details-every-deal-2026-offseason-draft-free-agency"
+      }
+    ]
+  },
+  "notes": {
+    "jobs": "Six roles today, all linking to the employer's own posting rather than a job-board search page \u2014 the search change made after yesterday's thin edition."
+  },
+  "_stale": false
+}
