@@ -221,7 +221,8 @@ button:active{opacity:.6}
     ];
     return h2("The Gate")+
       '<div class="verdict '+(hold?"go":"stop")+'">'+
-        '<div class="big">'+(hold?"Hold TQQQ":"Hold T-bills")+'</div>'+
+        '<div class="big">'+(hold?"Hold TQQQ":"Hold gold")+'</div>'+
+        (hold?'':'<div class="tiny">1x bullion &mdash; GLD, IAU or GLDM.</div>')+
         '<div class="sub">'+esc(sub)+'</div>'+
         '<div class="tiny">Unchanged for '+g.held+' sessions'+
           (g.since?', since '+esc(fmtDate(g.since)):'')+
