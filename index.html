@@ -209,10 +209,13 @@ button:active{opacity:.6}
       ? "Blocked by "+g.blockers.join(" and ")+"."
       : "All three gates pass.";
     var rows = [
+      // The threshold line has to agree with the reading beside it. Writing a
+      // flat "below 1.10" next to a value of 1.22 states something false on
+      // exactly the days the gate is doing its job, so it tracks the state.
       {lab:"Absolute volatility", sm:"20-day, annualised", ok:g.g1,
-       num:(g.v20*100).toFixed(1)+"%", t:"below 35%"},
+       num:(g.v20*100).toFixed(1)+"%", t:(g.g1?"below":"above")+" 35%"},
       {lab:"Volatility shock", sm:"20-day against its 250-day normal", ok:g.g2,
-       num:g.ratio.toFixed(2), t:"below 1.10"},
+       num:g.ratio.toFixed(2), t:(g.g2?"below":"above")+" 1.10"},
       {lab:"Drawdown", sm:Math.round((params.dd_exit+g.dd)*100)+" points of further fall before it exits",
        ok:g.g3, num:(g.dd*100).toFixed(1)+"%", t:"exit below −20%"}
     ];

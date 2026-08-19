@@ -48,6 +48,31 @@ def get(url, timeout=45):
         return json.loads(r.read())
 
 
+def settled_meta_row(res, last_date):
+    """Recover a session Yahoo has settled but serves as a null daily bar.
+
+    Seen 2026-08-18: every symbol returned close=None for 2026-08-17 while
+    meta.regularMarketTime/regularMarketPrice still carried Monday's 20:00Z
+    close. The `c is not None` filter then silently deleted a real trading day,
+    which shortens the rolling windows and freezes the gate on a stale session.
+
+    Only taken once the session is genuinely over - either the stamp falls on an
+    earlier calendar day than now, or it is past the 16:00 ET close on today's
+    date - so an in-progress quote can never be written in as a close.
+    """
+    meta = res.get("meta") or {}
+    t, px = meta.get("regularMarketTime"), meta.get("regularMarketPrice")
+    if not t or px is None:
+        return None
+    when = datetime.fromtimestamp(t, timezone.utc)
+    day = when.strftime("%Y-%m-%d")
+    if last_date and day <= last_date:
+        return None
+    if day == datetime.now(timezone.utc).strftime("%Y-%m-%d") and when.hour < 20:
+        return None
+    return (day, float(px))
+
+
 def chart(symbol, rng="3y"):
     d = get("https://query1.finance.yahoo.com/v8/finance/chart/"
             f"{urllib.request.quote(symbol)}?range={rng}&interval=1d")
@@ -56,6 +81,9 @@ def chart(symbol, rng="3y"):
     close = res["indicators"]["quote"][0]["close"]
     rows = [(datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%d"), c)
             for t, c in zip(ts, close) if c is not None]
+    extra = settled_meta_row(res, rows[-1][0] if rows else None)
+    if extra:
+        rows.append(extra)
     return rows
 
 
@@ -267,6 +295,20 @@ def main():
         print(f"FAIL: only {len(qqq)} QQQ sessions", file=sys.stderr)
         return 1
     g = gate([d for d, _ in qqq], [round(float(c), 4) for _, c in qqq])
+
+    # Never publish a series that has gone backwards. A vendor gap that drops
+    # the newest session must leave the last good edition standing, not roll it.
+    prev = None
+    if os.path.exists(OUT):
+        try:
+            with open(OUT, encoding="utf-8") as f:
+                prev = (json.load(f).get("gate") or {}).get("date")
+        except Exception:
+            prev = None
+    if prev and str(g.get("date") or "") < prev:
+        print(f"FAIL: fetched close {g.get('date')} is older than the published "
+              f"{prev}; refusing to publish a regression", file=sys.stderr)
+        return 1
 
     payload = {
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
