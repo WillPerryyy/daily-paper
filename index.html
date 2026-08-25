@@ -127,7 +127,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-08-12b";
+  var BUILD = "2026-08-25a";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -273,29 +273,21 @@ button:active{opacity:.6}
       esc(String(w.tmw_desc).toLowerCase())+', '+w.tmw_high+'&deg;.</div></div></div>';
   }
 
-  function render(live, R, offline){
+  function render(live, offline){
     var d=new Date();
     $("date").textContent = d.toLocaleDateString("en-GB",
       {weekday:"long", day:"numeric", month:"long", year:"numeric"});
     var html="";
     if(offline) html+='<div class="msg">Offline &mdash; showing the last edition you loaded.</div>';
-    var today=d.toISOString().slice(0,10);
-    if(R && R.date && R.date!==today)
-      html+='<div class="msg">The written sections below are from '+esc(fmtDate(R.date))+
-            '. The gate, markets and headlines are current.</div>';
 
     html += gateHtml(live.gate, live.params||{rv_thr:0.35,vr_thr:1.10,dd_exit:0.20});
     html += marketsHtml(live.markets);
     var hl=live.headlines||{};
-    if(hl.markets && hl.markets.length) html += h2("Market News")+itemsHtml(hl.markets);
-    if(hl.world && hl.world.length)     html += h2("World")+itemsHtml(hl.world);
-    if(R){
-      if(R.cyber_intel) html += h2("Cyber Insurance")+itemsHtml(R.cyber_intel);
-      if(R.uk_news)     html += h2("England")+itemsHtml(R.uk_news);
-      var sp=R.sports||{};
-      [["premier_league","Premier League"],["f1","Formula 1"],["nba","NBA"]]
-        .forEach(function(p){ if(sp[p[0]]) html += h2(p[1])+itemsHtml(sp[p[0]]); });
-    }
+    [["markets","Market News"],["world","World"],["cyber","Cyber Insurance"],
+     ["uk","England"],["premier_league","Premier League"],["f1","Formula 1"],
+     ["nba","NBA"]].forEach(function(p){
+      if(hl[p[0]] && hl[p[0]].length) html += h2(p[1])+itemsHtml(hl[p[0]]);
+    });
     html += weatherHtml(live.weather);
     $("body").innerHTML = html;
     $("foot").innerHTML = "Refreshed "+
@@ -315,18 +307,15 @@ button:active{opacity:.6}
         : "Refresh failed — tap to retry";
       setTimeout(function(){ btn.textContent="Refresh"; }, 4000);
     };
-    Promise.all([
-      fetch("data/live.json?t="+Date.now(),{cache:"no-store"})
-        .then(function(r){ if(!r.ok) throw new Error("live.json HTTP "+r.status); return r.json(); }),
-      fetch("data/research.json?t="+Date.now(),{cache:"no-store"})
-        .then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; })
-    ]).then(function(a){
-      try{ localStorage.setItem(CACHE, JSON.stringify({live:a[0],research:a[1],build:BUILD})); }catch(e){}
-      render(a[0],a[1],false); done(true);
+    fetch("data/live.json?t="+Date.now(),{cache:"no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("live.json HTTP "+r.status); return r.json(); })
+      .then(function(j){
+      try{ localStorage.setItem(CACHE, JSON.stringify({live:j,build:BUILD})); }catch(e){}
+      render(j,false); done(true);
     }).catch(function(e){
       done(false);
       var c=localStorage.getItem(CACHE);
-      if(c){ try{ var p=JSON.parse(c); render(p.live,p.research,true); return; }catch(_){} }
+      if(c){ try{ var p=JSON.parse(c); render(p.live,true); return; }catch(_){} }
       $("body").innerHTML='<div class="msg">Could not load the edition: '+esc(e.message||e)+'</div>';
     });
   }
@@ -335,7 +324,7 @@ button:active{opacity:.6}
   // Only paint from cache when it came from this build; an older cache can be
   // missing fields this version renders.
   var c=localStorage.getItem(CACHE);
-  if(c){ try{ var p=JSON.parse(c); if(p.build===BUILD) render(p.live,p.research,true); }catch(e){} }
+  if(c){ try{ var p=JSON.parse(c); if(p.build===BUILD) render(p.live,true); }catch(e){} }
   load(false);
 })();
 </script>

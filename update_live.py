@@ -14,6 +14,7 @@ files, so neither can clobber the other.
 import json
 import math
 import os
+import re
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -224,9 +225,59 @@ FEEDS = {
         ("BBC", "https://feeds.bbci.co.uk/news/world/rss.xml"),
         ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
     ],
+    # These five used to live in research.json, which nothing ever updated -
+    # it sat at 2026-08-11 for a fortnight while the page presented it as
+    # current. Every feed below was measured before being wired in: newest
+    # item and median age checked, and anything without a parseable pubDate or
+    # older than 48h at probe time was rejected outright (Krebs newest 268h,
+    # CBS Sports NBA 89h, BleepingComputer/ESPN/NBA.com unreachable).
+    "cyber": [
+        ("Insurance Journal", "https://www.insurancejournal.com/feed/"),
+        ("Reinsurance News", "https://www.reinsurancene.ws/feed/"),
+        ("The Record", "https://therecord.media/feed"),
+        ("Artemis", "https://www.artemis.bm/feed/"),
+        ("Cybersecurity Dive", "https://www.cybersecuritydive.com/feeds/news/"),
+    ],
+    "uk": [
+        ("BBC", "https://feeds.bbci.co.uk/news/uk/rss.xml"),
+        ("Guardian", "https://www.theguardian.com/uk-news/rss"),
+        ("Sky News", "https://feeds.skynews.com/feeds/rss/uk.xml"),
+        ("BBC Politics", "https://feeds.bbci.co.uk/news/politics/rss.xml"),
+    ],
+    "premier_league": [
+        ("BBC Sport", "https://feeds.bbci.co.uk/sport/football/premier-league/rss.xml"),
+        ("Sky Sports", "https://www.skysports.com/rss/11661"),
+        ("Guardian", "https://www.theguardian.com/football/premierleague/rss"),
+    ],
+    "f1": [
+        ("Autosport", "https://www.autosport.com/rss/f1/news/"),
+        ("Motorsport", "https://www.motorsport.com/rss/f1/news/"),
+        ("Sky Sports", "https://www.skysports.com/rss/12433"),
+        ("BBC Sport", "https://feeds.bbci.co.uk/sport/formula1/rss.xml"),
+    ],
+    "nba": [
+        ("Yahoo Sports", "https://sports.yahoo.com/nba/rss.xml"),
+        ("RealGM", "https://basketball.realgm.com/rss/wiretap/0/0.xml"),
+    ],
 }
 
 MAX_AGE_H = 48      # anything older is not news
+
+# Sport is lumpier than news - a league can go quiet for days, and the NBA is
+# out of season for a third of the year - so those sections get a longer window
+# rather than rendering empty.
+SECTION_MAX_AGE_H = {"premier_league": 96, "f1": 96, "nba": 120, "cyber": 72}
+
+# The insurance and reinsurance feeds carry all insurance news, not just cyber,
+# so the cyber section is keyword-filtered. Applied to every cyber feed, not
+# just the general ones: an item from a security title that matches none of
+# these is not what this section is for either.
+CYBER_RE = re.compile(
+    r"cyber|ransom|breach|hack|malware|phish|extort|zero[- ]day|vulnerab|"
+    r"data protection|privacy|infosec|exfiltrat|ddos|ciso|threat actor",
+    re.I)
+
+SECTION_FILTER = {"cyber": CYBER_RE}
 
 
 def headlines(limit=8):
@@ -243,6 +294,8 @@ def headlines(limit=8):
     now = datetime.now(timezone.utc)
     out = {}
     for section, feeds in FEEDS.items():
+        max_age = SECTION_MAX_AGE_H.get(section, MAX_AGE_H)
+        keep = SECTION_FILTER.get(section)
         items, seen = [], set()
         for source, url in feeds:
             try:
@@ -260,7 +313,13 @@ def headlines(limit=8):
                     except Exception:  # noqa: BLE001
                         continue
                     age = (now - dt).total_seconds() / 3600
-                    if age < 0 or age > MAX_AGE_H:
+                    # Sky Sports stamps some items a little in the future.
+                    # Rejecting age < 0 silently dropped its freshest headlines,
+                    # so allow a small skew and clamp rather than discard.
+                    if age < -6 or age > max_age:
+                        continue
+                    age = max(age, 0.0)
+                    if keep is not None and not keep.search(title):
                         continue
                     key = title.lower()[:60]
                     if key in seen:
@@ -279,7 +338,7 @@ def headlines(limit=8):
                   f"newest {items[0]['age_h']:.1f}h, oldest kept "
                   f"{out[section][-1]['age_h']:.1f}h")
         else:
-            print(f"  {section}: NO items inside {MAX_AGE_H}h", file=sys.stderr)
+            print(f"  {section}: NO items inside {max_age}h", file=sys.stderr)
     return out
 
 
