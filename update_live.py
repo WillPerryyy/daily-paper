@@ -161,10 +161,11 @@ def gate(dates, closes):
     blockers = [n for n, k in [("absolute vol", "g1"), ("vol shock", "g2"),
                                ("drawdown", "g3")] if last[k] == 0]
 
-    # A year of price and signal so the page can shade the periods the rule was
-    # invested. sig is a 0/1 string rather than an array - it is a quarter the
-    # size in JSON and this file is fetched on every page open.
-    span = 252
+    # Five years of price and signal so the page can shade the periods the rule
+    # was invested. sig is a 0/1 string rather than an array - it is a quarter
+    # the size in JSON and this file is fetched on every page open, which is why
+    # a 5x longer window only costs about 25KB.
+    span = 1260
     idx0 = P["vr_slow"] + 1
     hist_dates = dates[idx0:]
     hist_close = closes[idx0:]
@@ -366,10 +367,10 @@ def weather():
 
 
 def main():
-    # 250 sessions are consumed warming up the gates, so fetch enough that a
-    # full year of signal history survives on the other side.
-    qqq = chart("QQQ", "3y")[-520:]
-    if len(qqq) < 300:
+    # 250 sessions are consumed warming up the gates, so fetch enough that five
+    # full years of signal history survive on the other side: 1260 + 250 + slack.
+    qqq = chart("QQQ", "10y")[-1560:]
+    if len(qqq) < 1300:
         print(f"FAIL: only {len(qqq)} QQQ sessions", file=sys.stderr)
         return 1
     g = gate([d for d, _ in qqq], [round(float(c), 4) for _, c in qqq])

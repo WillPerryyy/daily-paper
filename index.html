@@ -127,7 +127,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-08-25a";
+  var BUILD = "2026-08-27a";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -151,9 +151,14 @@ button:active{opacity:.6}
     if(!h || !h.dates || h.dates.length < 20) return "";
     var W=640, H=170, PL=2, PR=2, PT=10, PB=22, n=h.closes.length;
     var lo=Math.min.apply(null,h.closes), hi=Math.max.apply(null,h.closes);
-    var pad=(hi-lo)*0.10 || 1; lo-=pad; hi+=pad;
+    // Log scale. Over five years QQQ spans about 2.9x, and on a linear axis
+    // that flattens the 2022 bear into a shallow dip while exaggerating recent
+    // moves. On a log axis equal vertical distances are equal percentage moves,
+    // which is what the in/out shading is meant to be read against.
+    var lLo=Math.log(lo), lHi=Math.log(hi);
+    var lPad=(lHi-lLo)*0.08 || 0.02; lLo-=lPad; lHi+=lPad;
     var X=function(i){ return PL + i/(n-1)*(W-PL-PR); };
-    var Y=function(v){ return H-PB - (v-lo)/(hi-lo)*(H-PT-PB); };
+    var Y=function(v){ return H-PB - (Math.log(v)-lLo)/(lHi-lLo)*(H-PT-PB); };
 
     var segs="", i=0;
     while(i < n-1){
@@ -172,21 +177,24 @@ button:active{opacity:.6}
       i = (j > i) ? j : i + 1;
     }
 
-    var ticks="", seen={};
+    // Quarterly ticks were right for a one-year window; over five years they
+    // would collide. Label whole years instead, and only where there is room.
+    var ticks="", seenY={};
     h.dates.forEach(function(dt,k){
-      var mo=dt.slice(5,7);
-      if(!seen[dt.slice(0,7)] && (mo==="01"||mo==="04"||mo==="07"||mo==="10")){
-        seen[dt.slice(0,7)]=1;
-        var M={"01":"Jan","04":"Apr","07":"Jul","10":"Oct"}[mo];
-        ticks += '<text x="'+X(k).toFixed(1)+'" y="'+(H-6)+'" font-size="12" '+
-          'fill="var(--ink3)" text-anchor="middle">'+M+' '+dt.slice(2,4)+'</text>';
+      var yr=dt.slice(0,4);
+      if(!seenY[yr]){
+        seenY[yr]=1;
+        var x=X(k);
+        if(x<18 || x>W-18) return;
+        ticks += '<text x="'+x.toFixed(1)+'" y="'+(H-6)+'" font-size="12" '+
+          'fill="var(--ink3)" text-anchor="middle">'+yr+'</text>';
       }
     });
 
     var ones=0; for(var q=0;q<n;q++) if(h.sig[q]==="1") ones++;
     var pct=Math.round(ones/n*100);
     return '<div class="chart"><svg viewBox="0 0 '+W+' '+H+'" role="img" '+
-      'aria-label="QQQ over the past year, green where the rule was invested and grey where it held T-bills.">'+
+      'aria-label="QQQ over the past five years, green where the rule was invested and grey where it held T-bills.">'+
       ticks+segs+
       '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(h.closes[n-1]).toFixed(1)+'" r="4.5" '+
       'fill="'+(inNow?"var(--go)":"var(--stop)")+'"/></svg>'+
@@ -194,9 +202,9 @@ button:active{opacity:.6}
         '<span><i style="background:var(--go)"></i>In TQQQ</span>'+
         '<span><i style="background:var(--ink3);opacity:.5"></i>In T-bills</span>'+
       '</div>'+
-      '<div class="say">QQQ over the past year, <b>green while the rule was '+
-      'invested</b> and grey while it sat in T-bills &mdash; in the market '+
-      '<b>'+pct+'% of the year</b>. The dot is today.</div></div>';
+      '<div class="say">QQQ over the past five years on a log scale, <b>green '+
+      'while the rule was invested</b> and grey while it sat out &mdash; in the '+
+      'market <b>'+pct+'% of the time</b>. The dot is today.</div></div>';
   }
 
   function gateHtml(g, params){
