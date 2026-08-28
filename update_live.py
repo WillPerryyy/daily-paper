@@ -174,9 +174,44 @@ def gate(dates, closes):
         "closes": [round(c, 2) for c in hist_close[-span:]],
         "sig": "".join(str(int(x)) for x in sig_series[-span:]),
     }
+    # One entry per contiguous in-market run, carrying what TQQQ actually did
+    # over it. Computed here rather than in the page because the page only has
+    # QQQ closes, and 3x is not 3x the index return over a multi-week stretch -
+    # daily reset and financing make the difference large enough to mislead.
+    hist["runs"] = green_runs(hist["dates"], hist["sig"])
     last.update(ok=True, signal=sig, held=held, since=since,
                 blockers=blockers, history=hist)
     return last
+
+
+
+def green_runs(dates, sig):
+    """Contiguous in-market spells, with the real TQQQ return over each.
+
+    TQQQ prices are fetched separately; where a date is missing on either end
+    the run still reports its span and length, with a null return, rather than
+    being silently dropped or filled with a guess.
+    """
+    try:
+        tq = dict(chart("TQQQ", "10y"))
+    except Exception as e:  # noqa: BLE001
+        print(f"  TQQQ fetch failed ({type(e).__name__}); runs carry no returns",
+              file=sys.stderr)
+        tq = {}
+    out, i, n = [], 0, len(sig)
+    while i < n:
+        if sig[i] != "1":
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and sig[j + 1] == "1":
+            j += 1
+        a, b = dates[i], dates[j]
+        pa, pb = tq.get(a), tq.get(b)
+        out.append({"a": a, "b": b, "i0": i, "i1": j, "n": j - i + 1,
+                    "tq": None if not (pa and pb) else round((pb / pa - 1) * 100, 1)})
+        i = j + 1
+    return out
 
 
 def markets():

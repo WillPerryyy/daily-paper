@@ -78,6 +78,7 @@ h2{font:700 15px/1.2 -apple-system,system-ui,sans-serif;
 .mrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   padding:11px 0;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums}
 .mrow .nm{font-size:16px}
+.mrow .nm .sm{color:var(--ink3);font-size:13.5px}
 .mrow .rt{text-align:right;white-space:nowrap}
 .mrow .px{font:600 16px ui-monospace,Menlo,monospace}
 .mrow .ch{font:500 13.5px ui-monospace,monospace;margin-left:10px}
@@ -127,7 +128,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-08-27a";
+  var BUILD = "2026-08-28a";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -142,6 +143,28 @@ button:active{opacity:.6}
     var M = ["January","February","March","April","May","June","July",
              "August","September","October","November","December"];
     return parseInt(p[2],10)+" "+M[parseInt(p[1],10)-1]+" "+p[0];
+  }
+
+  // Every in-market spell with what TQQQ did over it. The chart can only label
+  // the wide ones, so this is where the short spells are actually readable.
+  function runsHtml(runs){
+    if(!runs || !runs.length) return "";
+    var rows = runs.slice().reverse().map(function(r){
+      var v = (r.tq===null||r.tq===undefined) ? "&mdash;"
+            : (r.tq>=0?"+":"")+r.tq.toFixed(1)+"%";
+      var cls = (r.tq===null||r.tq===undefined) ? "" : (r.tq>=0?"up":"dn");
+      return '<div class="mrow"><div class="nm">'+esc(fmtShort(r.a))+' &ndash; '+
+        esc(fmtShort(r.b))+'<span class="sm"> '+r.n+
+        (r.n===1?" session":" sessions")+'</span></div>'+
+        '<div class="rt"><span class="px '+cls+'">'+v+'</span></div></div>';
+    }).join("");
+    return '<h2>Every spell in TQQQ</h2>'+rows;
+  }
+  function fmtShort(iso){
+    var p=String(iso).split("-");
+    if(p.length!==3) return iso;
+    var M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return parseInt(p[2],10)+" "+M[parseInt(p[1],10)-1]+" "+p[0].slice(2);
   }
 
   // The line itself carries the state: green where the rule was invested, grey
@@ -191,17 +214,34 @@ button:active{opacity:.6}
       }
     });
 
+    // Label the runs that physically fit. At roughly half a pixel per session a
+    // three-week spell is 10px wide, so most cannot carry text; those are listed
+    // under the chart instead of being crammed on to it.
+    var labs="", runs=h.runs||[];
+    runs.forEach(function(rn){
+      if(rn.tq===null || rn.tq===undefined) return;
+      var x0=X(rn.i0), x1=X(rn.i1);
+      if(x1-x0 < 22) return;
+      var top=Infinity;
+      for(var k=rn.i0;k<=rn.i1;k++) top=Math.min(top,Y(h.closes[k]));
+      var y=Math.max(top-6, 10);
+      var txt=(rn.tq>=0?"+":"")+Math.round(rn.tq)+"%";
+      labs += '<text x="'+((x0+x1)/2).toFixed(1)+'" y="'+y.toFixed(1)+'" font-size="11" '+
+        'font-weight="600" fill="var(--go)" text-anchor="middle">'+txt+'</text>';
+    });
+
     var ones=0; for(var q=0;q<n;q++) if(h.sig[q]==="1") ones++;
     var pct=Math.round(ones/n*100);
     return '<div class="chart"><svg viewBox="0 0 '+W+' '+H+'" role="img" '+
       'aria-label="QQQ over the past five years, green where the rule was invested and grey where it held T-bills.">'+
-      ticks+segs+
+      ticks+segs+labs+
       '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(h.closes[n-1]).toFixed(1)+'" r="4.5" '+
       'fill="'+(inNow?"var(--go)":"var(--stop)")+'"/></svg>'+
       '<div class="key">'+
         '<span><i style="background:var(--go)"></i>In TQQQ</span>'+
         '<span><i style="background:var(--ink3);opacity:.5"></i>In T-bills</span>'+
       '</div>'+
+      runsHtml(runs)+
       '<div class="say">QQQ over the past five years on a log scale, <b>green '+
       'while the rule was invested</b> and grey while it sat out &mdash; in the '+
       'market <b>'+pct+'% of the time</b>. The dot is today.</div></div>';
