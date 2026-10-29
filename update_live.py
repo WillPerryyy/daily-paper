@@ -180,6 +180,20 @@ def gate(dates, closes):
     # been nearer 30KB on a file fetched every time the page opens.
     pre = hist_close[:-span][-199:] if len(hist_close) > span else []
     hist["pre"] = [round(c, 2) for c in pre]
+
+    # SPY on the same dates, for the faint comparison line. Aligned by date
+    # rather than by position: the two series do not always have identical
+    # session lists, and zipping them blind would silently shear the overlay.
+    try:
+        spy = dict(chart("SPY", "10y"))
+        hist["spy"] = [round(spy[d], 2) if d in spy else None
+                       for d in hist["dates"]]
+        miss = sum(1 for v in hist["spy"] if v is None)
+        if miss:
+            print(f"  spy: {miss} of {len(hist['spy'])} dates missing", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001
+        print(f"  spy fetch failed ({type(e).__name__}); overlay omitted", file=sys.stderr)
+        hist["spy"] = []
     # One entry per contiguous in-market run, carrying what TQQQ actually did
     # over it. Computed here rather than in the page because the page only has
     # QQQ closes, and 3x is not 3x the index return over a multi-week stretch -
