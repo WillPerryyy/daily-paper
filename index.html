@@ -17,6 +17,7 @@
   --paper:#fbf9f5; --card:#ffffff; --rule:#e4e0d6; --rule2:#cdc7b9;
   --ink:#16181c; --ink2:#4a505a; --ink3:#8b9199;
   --go:#1a6b4c; --stop:#a8402c; --link:#1b3a6b;
+  --sma20:#2a78d6; --sma50:#c07c12; --sma200:#7a4ca8;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -24,6 +25,7 @@
     --paper:#0f1113; --card:#171a1d; --rule:#272b30; --rule2:#3a4046;
     --ink:#edf0f2; --ink2:#aeb5bd; --ink3:#7d858d;
     --go:#5fbf9b; --stop:#e58060; --link:#86b0e6;
+    --sma20:#5c9fe8; --sma50:#e0a63c; --sma200:#a98ad6;
   }
 }
 :root[data-theme="dark"]{
@@ -31,6 +33,7 @@
   --paper:#0f1113; --card:#171a1d; --rule:#272b30; --rule2:#3a4046;
   --ink:#edf0f2; --ink2:#aeb5bd; --ink3:#7d858d;
   --go:#5fbf9b; --stop:#e58060; --link:#86b0e6;
+  --sma20:#5c9fe8; --sma50:#e0a63c; --sma200:#a98ad6;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
@@ -128,7 +131,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-08-28a";
+  var BUILD = "2026-10-29a";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -172,7 +175,7 @@ button:active{opacity:.6}
   // region and then back to the price; colouring the line removes that step.
   function chartHtml(h, inNow){
     if(!h || !h.dates || h.dates.length < 20) return "";
-    var W=640, H=170, PL=2, PR=2, PT=10, PB=22, n=h.closes.length;
+    var W=640, H=210, PL=2, PR=2, PT=10, PB=22, n=h.closes.length;
     var lo=Math.min.apply(null,h.closes), hi=Math.max.apply(null,h.closes);
     // Log scale. Over five years QQQ spans about 2.9x, and on a linear axis
     // that flattens the 2022 bear into a shallow dip while exaggerating recent
@@ -182,6 +185,27 @@ button:active{opacity:.6}
     var lPad=(lHi-lLo)*0.08 || 0.02; lLo-=lPad; lHi+=lPad;
     var X=function(i){ return PL + i/(n-1)*(W-PL-PR); };
     var Y=function(v){ return H-PB - (Math.log(v)-lLo)/(lHi-lLo)*(H-PT-PB); };
+
+    // Moving averages, computed here from the closes plus the warm-up prefix
+    // the feed ships, so the 200-day line is valid on day one of the window
+    // rather than starting 200 sessions in.
+    var pre=h.pre||[], all=pre.concat(h.closes), off=pre.length;
+    function smaLine(win, col, wdt){
+      if(all.length < win+5) return "";
+      var pts=[], run=0;
+      for(var k=0;k<all.length;k++){
+        run+=all[k];
+        if(k>=win) run-=all[k-win];
+        if(k>=win-1 && k>=off)
+          pts.push(X(k-off).toFixed(1)+","+Y(run/win).toFixed(1));
+      }
+      if(pts.length<2) return "";
+      return '<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+col+
+        '" stroke-width="'+wdt+'" stroke-linejoin="round" opacity="0.85"/>';
+    }
+    var smas = smaLine(200,"var(--sma200)",1.7)
+             + smaLine(50,"var(--sma50)",1.4)
+             + smaLine(20,"var(--sma20)",1.2);
 
     var segs="", i=0;
     while(i < n-1){
@@ -234,12 +258,15 @@ button:active{opacity:.6}
     var pct=Math.round(ones/n*100);
     return '<div class="chart"><svg viewBox="0 0 '+W+' '+H+'" role="img" '+
       'aria-label="QQQ over the past five years, green where the rule was invested and grey where it held T-bills.">'+
-      ticks+segs+labs+
+      ticks+smas+segs+labs+
       '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(h.closes[n-1]).toFixed(1)+'" r="4.5" '+
       'fill="'+(inNow?"var(--go)":"var(--stop)")+'"/></svg>'+
       '<div class="key">'+
         '<span><i style="background:var(--go)"></i>In TQQQ</span>'+
         '<span><i style="background:var(--ink3);opacity:.5"></i>In T-bills</span>'+
+        '<span><i style="background:var(--sma20)"></i>20d</span>'+
+        '<span><i style="background:var(--sma50)"></i>50d</span>'+
+        '<span><i style="background:var(--sma200)"></i>200d</span>'+
       '</div>'+
       runsHtml(runs)+
       '<div class="say">QQQ over the past five years on a log scale, <b>green '+

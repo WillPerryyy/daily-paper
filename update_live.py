@@ -174,6 +174,12 @@ def gate(dates, closes):
         "closes": [round(c, 2) for c in hist_close[-span:]],
         "sig": "".join(str(int(x)) for x in sig_series[-span:]),
     }
+    # Closes immediately BEFORE the window, so the page can compute a 200-day
+    # average that is already valid on day one of the chart. 199 extra numbers
+    # is about 1.6KB; shipping three pre-computed SMA arrays instead would have
+    # been nearer 30KB on a file fetched every time the page opens.
+    pre = hist_close[:-span][-199:] if len(hist_close) > span else []
+    hist["pre"] = [round(c, 2) for c in pre]
     # One entry per contiguous in-market run, carrying what TQQQ actually did
     # over it. Computed here rather than in the page because the page only has
     # QQQ closes, and 3x is not 3x the index return over a multi-week stretch -
@@ -402,10 +408,11 @@ def weather():
 
 
 def main():
-    # 250 sessions are consumed warming up the gates, so fetch enough that five
-    # full years of signal history survive on the other side: 1260 + 250 + slack.
-    qqq = chart("QQQ", "10y")[-1560:]
-    if len(qqq) < 1300:
+    # 250 sessions warm up the gates and another 200 warm up the 200-day moving
+    # average, so five full years of chart need 1260 + 250 + 200 + slack. At
+    # 1560 the average only became valid 151 sessions into the window.
+    qqq = chart("QQQ", "10y")[-1760:]
+    if len(qqq) < 1700:
         print(f"FAIL: only {len(qqq)} QQQ sessions", file=sys.stderr)
         return 1
     g = gate([d for d, _ in qqq], [round(float(c), 4) for _, c in qqq])
