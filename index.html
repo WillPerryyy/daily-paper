@@ -69,12 +69,7 @@ h2{font:700 15px/1.2 -apple-system,system-ui,sans-serif;
 .grow .num .t{display:block;font:400 12px ui-monospace,monospace;color:var(--ink3);margin-top:2px}
 .ok .num{color:var(--go)} .no .num{color:var(--stop)}
 
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:26px}
-@media (max-width:620px){.charts{grid-template-columns:1fr;gap:26px}}
 .chart{margin-top:26px}
-.charts .chart{margin-top:0;min-width:0}
-.charts .key{gap:6px 12px;font-size:13px}
-.charts .say{font-size:13.5px}
 .chart svg{display:block;width:100%;height:auto}
 .chart .key{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;
   font-size:14px;color:var(--ink2)}
@@ -136,7 +131,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-10-29c";
+  var BUILD = "2026-10-29d";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -185,7 +180,7 @@ button:active{opacity:.6}
   // wide enough to read.
   function drawChart(h, o){
     var n = o.count, s0 = o.start;
-    var W=o.W||640, H=o.H, PL=2, PR=2, PT=10, PB=22;
+    var W=640, H=o.H, PL=2, PR=2, PT=10, PB=22;
     var win = h.closes.slice(s0, s0+n);
     var lows = win.slice(), i;
     if(o.spy && h.spy && h.spy.length){
@@ -241,7 +236,7 @@ button:active{opacity:.6}
       if(seen[key]) continue;
       if(o.ticks!=="year" && ["01","04","07","10"].indexOf(dt.slice(5,7))<0) continue;
       seen[key]=1;
-      var x=X(i); if(x<13 || x>W-13) continue;
+      var x=X(i); if(x<20 || x>W-20) continue;
       var lab = o.ticks==="year" ? dt.slice(0,4) : M[+dt.slice(5,7)-1]+" "+dt.slice(2,4);
       ticks += '<text x="'+x.toFixed(1)+'" y="'+(H-6)+'" font-size="12" '+
         'fill="var(--ink3)" text-anchor="middle">'+lab+'</text>';
@@ -279,12 +274,13 @@ button:active{opacity:.6}
     var pct=Math.round(ones/n*100);
     var qr=(h.closes[n-1]/h.closes[0]-1)*100, sr=null;
     if(h.spy && h.spy.length && h.spy[0]) sr=(h.spy[n-1]/h.spy[0]-1)*100;
-    var svg=drawChart(h,{start:0,count:n,W:320,H:230,smas:[200],spy:true,labels:true,
+    var svg=drawChart(h,{start:0,count:n,H:210,smas:[200],spy:true,labels:true,
       ticks:"year",inNow:inNow,
       aria:"QQQ over five years, green where the rule was invested and grey where it held T-bills, with the 200-day average and SPY for comparison."});
     return '<div class="chart">'+svg+
       key([["var(--go)","In TQQQ"],["var(--ink3)","In T-bills",1],
            ["var(--sma200)","200d"],["var(--ink2)","SPY",1]])+
+      runsHtml(h.runs||[])+
       '<div class="say">QQQ over five years on a log scale, <b>green while the rule '+
       'was invested</b> and grey while it sat out &mdash; in the market <b>'+pct+
       '% of the time</b>.'+(sr===null?"":' SPY is the dashed line, rebased to the same '+
@@ -295,10 +291,10 @@ button:active{opacity:.6}
   function zoomHtml(h, inNow){
     if(!h || !h.closes || h.closes.length < 300) return "";
     var n=h.closes.length, win=252, s0=n-win;
-    var svg=drawChart(h,{start:s0,count:win,W:320,H:230,smas:[20,50,200],spy:false,
+    var svg=drawChart(h,{start:s0,count:win,H:200,smas:[20,50,200],spy:false,
       labels:false,ticks:"month",inNow:inNow,
       aria:"QQQ over the past year with its 20, 50 and 200 day moving averages."});
-    return '<div class="chart">'+svg+
+    return '<div class="chart" style="margin-top:30px">'+svg+
       key([["var(--sma20)","20d"],["var(--sma50)","50d"],["var(--sma200)","200d"]])+
       '<div class="say">The past year only. At five years the 20 and 50 day averages '+
       'sit on top of the price line; this is the span where they separate.</div></div>';
@@ -338,8 +334,7 @@ button:active{opacity:.6}
           '<div class="lab">'+esc(r.lab)+'<span class="sm">'+esc(r.sm)+'</span></div>'+
           '<div class="num">'+esc(r.num)+'<span class="t">'+r.t+'</span></div></div>';
       }).join("")+'</div>'+
-      '<div class="charts">' + chartHtml(g.history, hold) +
-      zoomHtml(g.history, hold) + '</div>' + runsHtml(g.history.runs||[]);
+      chartHtml(g.history, hold) + zoomHtml(g.history, hold);
   }
 
   function marketsHtml(rows){
