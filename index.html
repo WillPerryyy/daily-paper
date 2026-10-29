@@ -131,7 +131,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-10-29d";
+  var BUILD = "2026-10-29e";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -280,7 +280,6 @@ button:active{opacity:.6}
     return '<div class="chart">'+svg+
       key([["var(--go)","In TQQQ"],["var(--ink3)","In T-bills",1],
            ["var(--sma200)","200d"],["var(--ink2)","SPY",1]])+
-      runsHtml(h.runs||[])+
       '<div class="say">QQQ over five years on a log scale, <b>green while the rule '+
       'was invested</b> and grey while it sat out &mdash; in the market <b>'+pct+
       '% of the time</b>.'+(sr===null?"":' SPY is the dashed line, rebased to the same '+
@@ -334,7 +333,8 @@ button:active{opacity:.6}
           '<div class="lab">'+esc(r.lab)+'<span class="sm">'+esc(r.sm)+'</span></div>'+
           '<div class="num">'+esc(r.num)+'<span class="t">'+r.t+'</span></div></div>';
       }).join("")+'</div>'+
-      chartHtml(g.history, hold) + zoomHtml(g.history, hold);
+      chartHtml(g.history, hold) + zoomHtml(g.history, hold) +
+      runsHtml(g.history.runs||[]);
   }
 
   function marketsHtml(rows){
