@@ -1,11 +1,24 @@
 name: Refresh paper
 
-# Every three hours. Prices only move once a day, but the market and world
-# headlines come from RSS and go stale quickly - that is the whole reason this
-# runs more often than the daily close.
+# Hourly, which is deliberate over-scheduling. Prices only move once a day, but
+# the market and world headlines come from RSS and go stale quickly - that is
+# the whole reason this runs more often than the daily close.
+#
+# The hourly figure is not what GitHub delivers. Measured over 342 hours to
+# 30 Oct 2026, a "5 */3 * * *" cron fired 59 times instead of 114: a 52%
+# delivery rate, one run every 5.8 hours rather than three, with the fire
+# landing 8 to 162 minutes past the slot. Nothing failed - all 59 runs
+# succeeded. GitHub simply drops scheduled runs under load, which is
+# documented behaviour, not a fault.
+#
+# So ask for twice what you need. At the observed rate hourly yields a refresh
+# roughly every two hours, and the morning read is covered by three or four
+# chances rather than one. The runs cost nothing: the repo is public, so
+# Actions minutes are free, and a run takes about 18 seconds. The content-hash
+# guard below means a run that finds nothing new does not commit.
 on:
   schedule:
-    - cron: "5 */3 * * *"
+    - cron: "5 * * * *"
   workflow_dispatch:
 
 permissions:
