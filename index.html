@@ -69,6 +69,23 @@ h2{font:700 15px/1.2 -apple-system,system-ui,sans-serif;
 .grow .num .t{display:block;font:400 12px ui-monospace,monospace;color:var(--ink3);margin-top:2px}
 .ok .num{color:var(--go)} .no .num{color:var(--stop)}
 
+.trail{margin-top:26px}
+.trail h3{font:600 13px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;
+  color:var(--ink3);margin:0 0 10px}
+.trail .tw{overflow-x:auto}
+.trail table{border-collapse:collapse;font:13px ui-monospace,Menlo,monospace}
+.trail th{font:400 10px/1.25 ui-sans-serif,system-ui,sans-serif;color:var(--ink3);
+  padding:0 0 6px;text-align:center;min-width:26px}
+.trail th span{display:block;font-size:12px;color:var(--ink2)}
+.trail th i{font-style:normal}
+.trail td{text-align:center;padding:3px 0;border-top:1px solid var(--rule)}
+.trail td.lab{font:400 13px ui-sans-serif,system-ui,sans-serif;color:var(--ink2);
+  text-align:left;padding-right:14px;white-space:nowrap}
+.trail td.p{color:var(--ink3)}
+.trail td.b{color:var(--stop);font-weight:700}
+.trail tr.vr td{border-top:1px solid var(--ink3)}
+.trail tr.vr td.p{color:var(--go);font-weight:700}
+.trail .say{margin-top:10px}
 .chart{margin-top:26px}
 .chart svg{display:block;width:100%;height:auto}
 .chart .key{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;
@@ -131,7 +148,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-10-30a";
+  var BUILD = "2026-11-02a";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -140,6 +157,7 @@ button:active{opacity:.6}
       .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
   function h2(t){ return '<h2>'+esc(t)+'</h2>'; }
+  var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function fmtDate(iso){
     var p = String(iso).split("-");
     if(p.length !== 3) return iso;
@@ -166,8 +184,7 @@ button:active{opacity:.6}
   function fmtShort(iso){
     var p=String(iso).split("-");
     if(p.length!==3) return iso;
-    var M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return parseInt(p[2],10)+" "+M[parseInt(p[1],10)-1]+" "+p[0].slice(2);
+    return parseInt(p[2],10)+" "+MON[parseInt(p[1],10)-1]+" "+p[0].slice(2);
   }
 
   // The line itself carries the state: green where the rule was invested, grey
@@ -230,7 +247,7 @@ button:active{opacity:.6}
       i2 = (j > i2) ? j : i2 + 1;
     }
 
-    var ticks="", seen={}, M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var ticks="", seen={}, M=MON;
     for(i=0;i<n;i++){
       var dt=h.dates[s0+i], key = o.ticks==="year" ? dt.slice(0,4) : dt.slice(0,7);
       if(seen[key]) continue;
@@ -299,6 +316,43 @@ button:active{opacity:.6}
       'sit on top of the price line; this is the span where they separate.</div></div>';
   }
 
+  // The panel showed today only, which cannot answer the question the
+  // persistence rule forces: did it block yesterday as well? One blocked day
+  // changes nothing - the verdict needs two in a row - so a lone red column
+  // was being read as a flip already under way.
+  function trailHtml(trail){
+    if(!trail || !trail.length) return "";
+    var rows = [["g1","Absolute vol"],["g2","Vol shock"],["g3","Drawdown"]];
+    var head = '<tr><th></th>'+trail.map(function(d){
+      var p = d.date.split("-");
+      return '<th><span>'+(+p[2])+'</span><i>'+MON[+p[1]-1]+'</i></th>';
+    }).join("")+'</tr>';
+    var body = rows.map(function(r){
+      return '<tr><td class="lab">'+r[1]+'</td>'+trail.map(function(d){
+        return '<td class="'+(d[r[0]]?"p":"b")+'" title="'+esc(d.date)+'">'+
+               (d[r[0]]?"&middot;":"✕")+'</td>';
+      }).join("")+'</tr>';
+    }).join("");
+    var verdict = '<tr class="vr"><td class="lab">Verdict</td>'+trail.map(function(d){
+      return '<td class="'+(d.sig?"p":"b")+'">'+(d.sig?"T":"B")+'</td>';
+    }).join("")+'</tr>';
+    var runs = 0, max = 0;
+    trail.forEach(function(d){ runs = d.all ? 0 : runs+1; if(runs>max) max=runs; });
+    var today = trail[trail.length-1];
+    var note = today.all
+      ? (max >= 1 ? "A gate blocked inside this fortnight but not on consecutive "+
+                    "sessions, so the verdict never moved." 
+                  : "No gate has blocked in this fortnight.")
+      : (trail.length>1 && !trail[trail.length-2].all
+          ? "<b>Blocked two sessions running &mdash; the verdict has flipped.</b>"
+          : "Blocked today only. It takes a second consecutive blocked session "+
+            "to move the verdict, so nothing changes yet.");
+    return '<div class="trail"><h3>The last '+trail.length+' sessions</h3>'+
+      '<div class="tw"><table>'+head+body+verdict+'</table></div>'+
+      '<div class="say">&middot; passed, &#10005; blocked. <b>T</b> in TQQQ, '+
+      '<b>B</b> in Treasuries. '+note+'</div></div>';
+  }
+
   function gateHtml(g, params){
     if(!g || !g.ok){
       return h2("The Gate")+'<div class="verdict unk"><div class="big">Unavailable</div>'+
@@ -314,8 +368,11 @@ button:active{opacity:.6}
       // exactly the days the gate is doing its job, so it tracks the state.
       {lab:"Absolute volatility", sm:"20-day, annualised", ok:g.g1,
        num:(g.v20*100).toFixed(1)+"%", t:(g.g1?"below":"above")+" 35%"},
+      // Three decimals, not two. At 1.0989 a two-decimal reading prints "1.10"
+      // directly beside the words "below 1.10", which reads as a gate sitting
+      // on its own ceiling when it is in fact passing with 0.001 to spare.
       {lab:"Volatility shock", sm:"20-day against its 250-day normal", ok:g.g2,
-       num:g.ratio.toFixed(2), t:(g.g2?"below":"above")+" 1.10"},
+       num:g.ratio.toFixed(3), t:(g.g2?"below":"above")+" 1.10"},
       {lab:"Drawdown", sm:Math.round((params.dd_exit+g.dd)*100)+" points of further fall before it exits",
        ok:g.g3, num:(g.dd*100).toFixed(1)+"%", t:"exit below −20%"}
     ];
@@ -333,6 +390,7 @@ button:active{opacity:.6}
           '<div class="lab">'+esc(r.lab)+'<span class="sm">'+esc(r.sm)+'</span></div>'+
           '<div class="num">'+esc(r.num)+'<span class="t">'+r.t+'</span></div></div>';
       }).join("")+'</div>'+
+      trailHtml(g.trail) +
       chartHtml(g.history, hold) + zoomHtml(g.history, hold) +
       runsHtml(g.history.runs||[]);
   }

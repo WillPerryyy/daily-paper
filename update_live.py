@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import urllib.request
+from collections import deque
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -124,7 +125,12 @@ def gate(dates, closes):
     if n < P["vr_slow"] + 2:
         return {"ok": False, "error": f"only {n} sessions, need {P['vr_slow']+2}"}
 
+    # trail keeps the last fortnight of per-gate verdicts. The panel used to
+    # show only today, which cannot answer the one question the persistence
+    # rule makes you ask - did it block yesterday too? - so a single blocked
+    # day looked like an imminent flip.
     g3prev, comb, last = 1, [], None
+    trail = deque(maxlen=14)
     for i in range(P["vr_slow"], n):
         v20 = sd(rets[i - P["rv_win"]:i]) * math.sqrt(252)
         v250 = sd(rets[i - P["vr_slow"]:i]) * math.sqrt(252)
@@ -138,6 +144,8 @@ def gate(dates, closes):
         comb.append(min(g1, g2, g3))
         last = dict(date=dates[i], v20=v20, ratio=ratio, dd=dd,
                     g1=g1, g2=g2, g3=g3, sd20=sd(rets[i - P["rv_win"]:i]))
+        trail.append(dict(date=dates[i], g1=g1, g2=g2, g3=g3,
+                          all=min(g1, g2, g3)))
 
     # Track the PERSISTED SIGNAL, not the raw combined gates. The signal only
     # flips after `persist` agreeing days, so it is far steadier: counting the
@@ -199,8 +207,15 @@ def gate(dates, closes):
     # QQQ closes, and 3x is not 3x the index return over a multi-week stretch -
     # daily reset and financing make the difference large enough to mislead.
     hist["runs"] = green_runs(hist["dates"], hist["sig"])
+    # Attach the persisted signal to each trailing day, so the strip can show
+    # where the verdict actually changed rather than only where a gate blocked.
+    trail = list(trail)
+    for k, row in enumerate(trail):
+        j = len(comb) - len(trail) + k          # index into comb
+        row["sig"] = sig_series[j - 1] if j >= 1 else 0
+
     last.update(ok=True, signal=sig, held=held, since=since,
-                blockers=blockers, history=hist)
+                blockers=blockers, trail=trail, history=hist)
     return last
 
 
