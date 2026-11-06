@@ -148,7 +148,22 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-11-02a";
+  var BUILD = "2026-11-06a";
+
+  // Where the edition comes from. The page cannot build it itself: Yahoo and
+  // all but four of the RSS feeds refuse cross-origin browser requests, so
+  // something server-side has to do the fetching.
+  //
+  // API rebuilds it on demand in about two seconds, which is what makes the
+  // news current on every refresh and the gate current within a minute of the
+  // close. Same-origin when the site is served from Vercel. To make a copy
+  // hosted elsewhere live too, put the absolute endpoint in API_ABS.
+  //
+  // FALLBACK is the committed file the scheduled job writes. It is only as
+  // fresh as the last GitHub Actions run, which is why it is second.
+  var API_ABS  = "";
+  var API      = API_ABS || (location.protocol === "file:" ? "" : "/api/live");
+  var FALLBACK = "data/live.json";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
 
@@ -450,6 +465,7 @@ button:active{opacity:.6}
     html += weatherHtml(live.weather);
     $("body").innerHTML = html;
     $("foot").innerHTML = "Refreshed "+freshness(live.updated)+
+      (live._src === "file" ? " from the last scheduled run" : "")+
       ". Gate logic is the tested rule from tqqq-strategy/spec.py, computed on QQQ "+
       "closes. Build "+BUILD+". Not investment advice.";
   }
@@ -483,9 +499,24 @@ button:active{opacity:.6}
         : "Refresh failed — tap to retry";
       setTimeout(function(){ btn.textContent="Refresh"; }, 4000);
     };
-    fetch("data/live.json?t="+Date.now(),{cache:"no-store"})
-      .then(function(r){ if(!r.ok) throw new Error("live.json HTTP "+r.status); return r.json(); })
-      .then(function(j){
+    // No cache-buster on the API: a unique URL every time would miss the edge
+    // cache on every load, so each refresh would rebuild from scratch and put
+    // the whole feed list through again. cache:"no-store" keeps the browser
+    // from holding its own copy, which is the part that actually went stale.
+    var grab = function(url, bust){
+      return fetch(bust ? url+"?t="+Date.now() : url, {cache:"no-store"})
+        .then(function(r){
+          if(!r.ok) throw new Error(url+" HTTP "+r.status);
+          return r.json();
+        });
+    };
+    var src = API ? "live" : "file";
+    var chain = API
+      ? grab(API, false).catch(function(){ src = "file"; return grab(FALLBACK, true); })
+      : grab(FALLBACK, true);
+
+    chain.then(function(j){
+      j._src = src;
       try{ localStorage.setItem(CACHE, JSON.stringify({live:j,build:BUILD})); }catch(e){}
       render(j,false); done(true);
     }).catch(function(e){

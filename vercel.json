@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/live.py": {
+      "includeFiles": "update_live.py",
+      "maxDuration": 30
+    }
+  }
+}

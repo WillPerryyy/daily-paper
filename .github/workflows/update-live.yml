@@ -16,9 +16,20 @@ name: Refresh paper
 # chances rather than one. The runs cost nothing: the repo is public, so
 # Actions minutes are free, and a run takes about 18 seconds. The content-hash
 # guard below means a run that finds nothing new does not commit.
+#
+# The dense weekday block covers the close. GitHub cron is UTC and knows
+# nothing about daylight saving, while 16:00 in New York is 20:00 UTC in
+# summer and 21:00 UTC in winter, so the block spans both and keeps trying
+# for an hour after each. With half the fires dropped, four attempts a
+# quarter-hour apart is what it takes for one to land soon after the bell.
+#
+# This file is now the FALLBACK. api/live.py rebuilds the same payload on
+# demand in about a second, so a page open is current regardless of when this
+# last ran; the commit only matters when that endpoint is unreachable.
 on:
   schedule:
     - cron: "5 * * * *"
+    - cron: "5,20,35,50 20-22 * * 1-5"
   workflow_dispatch:
 
 permissions:

@@ -18,10 +18,15 @@ import re
 import sys
 import urllib.request
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "data", "live.json")
+# Sessions are defined in New York, not UTC. Hardcoding a UTC hour is wrong
+# for the four months the city is on standard time.
+NY = ZoneInfo("America/New_York")
 
 # gate parameters — identical to tqqq-strategy/spec.py
 P = dict(rv_win=20, rv_thr=0.35, vr_fast=20, vr_slow=250,
@@ -44,26 +49,80 @@ WMO = {0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
        95: "Thunderstorm", 96: "Thunderstorm, hail", 99: "Thunderstorm, hail"}
 
 
-def get(url, timeout=45):
+# Every network read goes through _CACHE so build_payload() can warm the whole
+# edition in parallel first. Serially this file made about thirty requests one
+# after another - tolerable in a scheduled job nobody waits for, far too slow
+# behind a page load.
+_CACHE = {}
+
+
+def fetch_bytes(url, timeout=25):
+    if url in _CACHE:
+        return _CACHE[url]
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+        return r.read()
+
+
+def prefetch(urls, timeout=25, workers=12):
+    """Warm _CACHE in parallel. A URL that fails is simply left out: the
+    ordinary serial caller then retries it on its own and handles the failure
+    exactly as it did before, so a dead feed degrades rather than throws."""
+    def one(u):
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return u, r.read()
+        except Exception:  # noqa: BLE001
+            return u, None
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for u, b in ex.map(one, list(dict.fromkeys(urls))):
+            if b is not None:
+                _CACHE[u] = b
+
+
+def get(url, timeout=45):
+    return json.loads(fetch_bytes(url, timeout))
+
+
+def session_over(res, day):
+    """Has the regular session for `day` (a New York date) finished?
+
+    This used to be `when.hour < 20`, a hardcoded UTC close. 16:00 in New York
+    is 20:00 UTC only on daylight time; from the first Sunday in November it is
+    21:00 UTC, so for four months of the year the test cleared an intraday
+    quote as a settled close for the whole final hour of trading. Observed
+    doing exactly that on 6 Nov 2026 at 15:58 ET.
+
+    Yahoo's own currentTradingPeriod.regular.end is preferred because it is
+    also right on the half days - 13:00 ET the Friday after Thanksgiving, and
+    Christmas Eve - where any fixed hour is wrong. 16:00 New York is the
+    fallback when the metadata is missing or describes another date.
+    """
+    now = datetime.now(timezone.utc).astimezone(NY)
+    today = now.strftime("%Y-%m-%d")
+    if today != day:
+        return today > day                      # a later session has begun
+    end = (((res.get("meta") or {}).get("currentTradingPeriod") or {})
+           .get("regular") or {}).get("end")
+    if end:
+        e = datetime.fromtimestamp(end, timezone.utc).astimezone(NY)
+        if e.strftime("%Y-%m-%d") == day:
+            return now >= e
+    return now.hour >= 16
 
 
 def drop_unsettled_tail(res, rows):
     """Discard a trailing bar for a session that has not closed yet.
 
-    Yahoo publishes the CURRENT day as a daily bar carrying the live price. This
-    job runs three-hourly, so it lands inside market hours and would otherwise
-    compute the gate from an intraday quote and label it a close - a reading
-    that flips during the session. The gate is defined on closes only.
+    Yahoo publishes the CURRENT day as a daily bar carrying the live price, so
+    any read during market hours would otherwise compute the gate from an
+    intraday quote and label it a close - a reading that flips through the
+    session. The gate is defined on closes only.
     """
-    meta = res.get("meta") or {}
-    t = meta.get("regularMarketTime")
-    if not rows or not t:
+    if not rows:
         return rows
-    when = datetime.fromtimestamp(t, timezone.utc)
-    if rows[-1][0] == when.strftime("%Y-%m-%d") and when.hour < 20:
+    if not session_over(res, rows[-1][0]):
         return rows[:-1]
     return rows
 
@@ -76,26 +135,29 @@ def settled_meta_row(res, last_date):
     close. The `c is not None` filter then silently deleted a real trading day,
     which shortens the rolling windows and freezes the gate on a stale session.
 
-    Only taken once the session is genuinely over - either the stamp falls on an
-    earlier calendar day than now, or it is past the 16:00 ET close on today's
-    date - so an in-progress quote can never be written in as a close.
+    Only taken once the session is genuinely over, by the same New York test
+    drop_unsettled_tail uses, so an in-progress quote can never be written in
+    as a close.
     """
     meta = res.get("meta") or {}
     t, px = meta.get("regularMarketTime"), meta.get("regularMarketPrice")
     if not t or px is None:
         return None
-    when = datetime.fromtimestamp(t, timezone.utc)
-    day = when.strftime("%Y-%m-%d")
+    day = datetime.fromtimestamp(t, timezone.utc).astimezone(NY).strftime("%Y-%m-%d")
     if last_date and day <= last_date:
         return None
-    if day == datetime.now(timezone.utc).strftime("%Y-%m-%d") and when.hour < 20:
+    if not session_over(res, day):
         return None
     return (day, float(px))
 
 
-def chart(symbol, rng="3y"):
-    d = get("https://query1.finance.yahoo.com/v8/finance/chart/"
+def chart_url(symbol, rng="3y"):
+    return ("https://query1.finance.yahoo.com/v8/finance/chart/"
             f"{urllib.request.quote(symbol)}?range={rng}&interval=1d")
+
+
+def chart(symbol, rng="3y"):
+    d = get(chart_url(symbol, rng))
     res = d["chart"]["result"][0]
     ts = res["timestamp"]
     close = res["indicators"]["quote"][0]["close"]
@@ -370,8 +432,7 @@ def headlines(limit=8):
         items, seen = [], set()
         for source, url in feeds:
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-                root = ET.fromstring(urllib.request.urlopen(req, timeout=25).read())
+                root = ET.fromstring(fetch_bytes(url, 25))
                 for it in root.findall(".//item")[:15]:
                     title = (it.findtext("title") or "").strip()
                     pd = it.findtext("pubDate")
@@ -413,14 +474,17 @@ def headlines(limit=8):
     return out
 
 
+WEATHER_URL = ("https://api.open-meteo.com/v1/forecast?latitude=40.7128"
+               "&longitude=-74.0060&daily=temperature_2m_max,temperature_2m_min,"
+               "precipitation_probability_max,weathercode,sunset"
+               "&current=temperature_2m,weathercode,wind_speed_10m"
+               "&timezone=America/New_York&forecast_days=2"
+               "&temperature_unit=fahrenheit")
+
+
 def weather():
     try:
-        d = get("https://api.open-meteo.com/v1/forecast?latitude=40.7128"
-                "&longitude=-74.0060&daily=temperature_2m_max,temperature_2m_min,"
-                "precipitation_probability_max,weathercode,sunset"
-                "&current=temperature_2m,weathercode,wind_speed_10m"
-                "&timezone=America/New_York&forecast_days=2"
-                "&temperature_unit=fahrenheit")
+        d = get(WEATHER_URL)
         dy = d["daily"]
         return {"ok": True,
                 "now": round(d["current"]["temperature_2m"]),
@@ -436,31 +500,38 @@ def weather():
         return {"ok": False, "error": f"{type(e).__name__}"}
 
 
-def main():
+def build_payload(prev_date=None):
+    """Assemble one complete edition. Returns (payload, error).
+
+    Shared by the committed-file path in main() and the on-demand endpoint in
+    api/live.py, so the gate has exactly one implementation. It is verified
+    against tqqq-strategy/spec.py, and a second copy would be free to drift
+    from it silently.
+    """
+    # Clear first. On Vercel the module stays warm between requests, so a
+    # surviving _CACHE would serve yesterday's bytes for any source that failed
+    # this time round - a stale edition presented as a live one, which is the
+    # exact failure this endpoint exists to end.
+    _CACHE.clear()
+    prefetch([chart_url("QQQ", "10y"), chart_url("SPY", "10y"), WEATHER_URL]
+             + [chart_url(sym, "3mo") for sym, _, _ in TICKERS]
+             + [u for feeds in FEEDS.values() for _, u in feeds])
+
     # 250 sessions warm up the gates and another 200 warm up the 200-day moving
     # average, so five full years of chart need 1260 + 250 + 200 + slack. At
     # 1560 the average only became valid 151 sessions into the window.
     qqq = chart("QQQ", "10y")[-1760:]
     if len(qqq) < 1700:
-        print(f"FAIL: only {len(qqq)} QQQ sessions", file=sys.stderr)
-        return 1
+        return None, f"only {len(qqq)} QQQ sessions"
     g = gate([d for d, _ in qqq], [round(float(c), 4) for _, c in qqq])
 
-    # Never publish a series that has gone backwards. A vendor gap that drops
-    # the newest session must leave the last good edition standing, not roll it.
-    prev = None
-    if os.path.exists(OUT):
-        try:
-            with open(OUT, encoding="utf-8") as f:
-                prev = (json.load(f).get("gate") or {}).get("date")
-        except Exception:
-            prev = None
-    if prev and str(g.get("date") or "") < prev:
-        print(f"FAIL: fetched close {g.get('date')} is older than the published "
-              f"{prev}; refusing to publish a regression", file=sys.stderr)
-        return 1
+    # Never serve a series that has gone backwards. A vendor gap that drops the
+    # newest session must leave the last good edition standing, not roll it.
+    if prev_date and str(g.get("date") or "") < prev_date:
+        return None, (f"fetched close {g.get('date')} is older than the "
+                      f"published {prev_date}; refusing to publish a regression")
 
-    payload = {
+    return {
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "gate": g,
         "markets": markets(),
@@ -468,7 +539,23 @@ def main():
         "weather": weather(),
         "params": {"rv_thr": P["rv_thr"], "vr_thr": P["vr_thr"],
                    "dd_exit": P["dd_exit"], "dd_reenter": P["dd_reenter"]},
-    }
+    }, None
+
+
+def main():
+    prev = None
+    if os.path.exists(OUT):
+        try:
+            with open(OUT, encoding="utf-8") as f:
+                prev = (json.load(f).get("gate") or {}).get("date")
+        except Exception:
+            prev = None
+
+    payload, err = build_payload(prev)
+    if err:
+        print(f"FAIL: {err}", file=sys.stderr)
+        return 1
+    g = payload["gate"]
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(payload, f, separators=(",", ":"))
