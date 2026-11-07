@@ -151,13 +151,29 @@ def settled_meta_row(res, last_date):
     return (day, float(px))
 
 
-def chart_url(symbol, rng="3y"):
-    return ("https://query1.finance.yahoo.com/v8/finance/chart/"
-            f"{urllib.request.quote(symbol)}?range={rng}&interval=1d")
+# 2009-01-01. TQQQ opened on 2010-02-11 and the gates need 250 sessions of
+# warm-up, so starting here means the equity curve can begin on the fund's
+# first day with a signal already running.
+CURVE_START = 1230768000
 
 
-def chart(symbol, rng="3y"):
-    d = get(chart_url(symbol, rng))
+def chart_url(symbol, rng="3y", since=None):
+    """Yahoo chart URL. `since` (epoch seconds) overrides the named range.
+
+    It has to, for anything long: range=max with interval=1d is silently
+    served as MONTHLY bars - 333 rows for 27 years of QQQ - and a monthly bar
+    reads as a 26% daily move to the split guard, which aborts the gate.
+    period1/period2 keeps true daily bars however far back you ask.
+    """
+    base = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+            f"{urllib.request.quote(symbol)}")
+    if since:
+        return f"{base}?period1={since}&period2=9999999999&interval=1d"
+    return f"{base}?range={rng}&interval=1d"
+
+
+def chart(symbol, rng="3y", since=None):
+    d = get(chart_url(symbol, rng, since))
     res = d["chart"]["result"][0]
     ts = res["timestamp"]
     close = res["indicators"]["quote"][0]["close"]
@@ -272,7 +288,8 @@ def gate(dates, closes):
     # What the rule actually earned, as opposed to what the index did. The page
     # cannot derive this from QQQ: it needs TQQQ and TLT prices, and a 3x fund
     # is not 3x the index over a multi-week stretch.
-    hist["curve"] = strategy_curve(hist["dates"], hist["sig"], hist.get("spy"))
+    hist["curve"] = strategy_curve(dates[idx0:],
+                                   "".join(str(int(x)) for x in sig_series))
     # Attach the persisted signal to each trailing day, so the strip can show
     # where the verdict actually changed rather than only where a gate blocked.
     trail = list(trail)
@@ -323,8 +340,8 @@ def max_dd(series):
     return worst
 
 
-def strategy_curve(dates, sig, spy=None):
-    """What the rule actually earned: TQQQ while invested, TLT while not.
+def strategy_curve(dates, sig):
+    """What the rule actually earned, over the whole life of TQQQ.
 
     One continuous line. The stake is whole at every moment - it buys TQQQ at
     the close the gate opens and sells it at the close the gate shuts, and the
@@ -341,13 +358,23 @@ def strategy_curve(dates, sig, spy=None):
     Gross of costs, spreads and tax.
     """
     try:
-        tq = dict(chart("TQQQ", "10y"))
-        tl = dict(chart("TLT", "10y"))
+        tq = dict(chart("TQQQ", since=CURVE_START))
+        tl = dict(chart("TLT", since=CURVE_START))
+        sp = dict(chart("SPY", since=CURVE_START))
     except Exception as e:  # noqa: BLE001
         print(f"  curve fetch failed ({type(e).__name__}); chart omitted",
               file=sys.stderr)
         return None
-    eq, gaps, switches = [100.0], 0, 0
+
+    start = next((i for i, d in enumerate(dates) if d in tq), None)
+    if start is None or start >= len(dates) - 250:
+        print("  curve: no overlap with TQQQ prices; chart omitted",
+              file=sys.stderr)
+        return None
+    dates, sig = dates[start:], sig[start:]
+
+    eq, ref, gaps, switches = [100.0], [100.0], 0, 0
+    base = sp.get(dates[0])
     for k in range(1, len(dates)):
         held = sig[k - 1]                      # decided at the previous close
         if k > 1 and held != sig[k - 2]:
@@ -359,42 +386,56 @@ def strategy_curve(dates, sig, spy=None):
         else:
             gaps += 1
             eq.append(eq[-1])                  # a missing quote earns nothing
+        v = sp.get(dates[k])
+        ref.append(v / base * 100 if (v and base) else ref[-1])
     if gaps:
         print(f"  curve: {gaps} of {len(dates)} sessions had no quote",
               file=sys.stderr)
 
-    # SPY on the same base. A missing quote holds the previous value rather
-    # than breaking the line, the same way the strategy leg handles one.
-    ref = None
-    if spy:
-        base = next((v for v in spy if v), None)
-        if base:
-            ref, last = [], 100.0
-            for v in spy:
-                if v:
-                    last = v / base * 100
-                ref.append(round(last, 2))
-
     d0 = datetime.strptime(dates[0], "%Y-%m-%d")
     d1 = datetime.strptime(dates[-1], "%Y-%m-%d")
     years = max((d1 - d0).days / 365.25, 0.5)
-    out = {
-        "eq": [round(v, 2) for v in eq],
-        "spy": ref or [],
+    stats = {
+        "eq_ret": round(eq[-1] / 100 - 1, 4),
+        "eq_cagr": round((eq[-1] / 100) ** (1 / years) - 1, 4),
+        "eq_dd": round(max_dd(eq), 4),
+        "spy_ret": round(ref[-1] / 100 - 1, 4),
+        "spy_cagr": round((ref[-1] / 100) ** (1 / years) - 1, 4),
+        "spy_dd": round(max_dd(ref), 4),
+    }
+
+    # Every statistic above is computed on all 4,200 sessions; only the drawn
+    # line is thinned. 640 pixels cannot show 4,200 points, and shipping them
+    # would add about 70KB to a file the page fetches on every open. Sampled
+    # points are real closes, never averages, so the line still passes through
+    # true values - it just skips some of the wiggle between them. A one or
+    # two session spell can fall between samples; those are in the spell list
+    # and on the five-year chart, which stays daily.
+    step = max(1, round(len(eq) / 1600))
+    keep = list(range(0, len(eq), step))
+    if keep[-1] != len(eq) - 1:
+        keep.append(len(eq) - 1)
+
+    # Year labels as (index, "2011") pairs. Shipping the 4,200 dates so the
+    # page could work these out itself would cost 55KB to render seventeen
+    # short strings.
+    ticks, seen = [], set()
+    for n, i in enumerate(keep):
+        y = dates[i][:4]
+        if y not in seen:
+            seen.add(y)
+            ticks.append([n, y])
+
+    return {
+        "eq": [round(eq[i], 1) for i in keep],
+        "spy": [round(ref[i], 1) for i in keep],
+        "sig": "".join(sig[i] for i in keep),
+        "ticks": ticks,
+        "from": dates[0],
         "years": round(years, 2),
         "switches": switches,
-        "stats": {
-            "eq_ret": round(eq[-1] / 100 - 1, 4),
-            "eq_cagr": round((eq[-1] / 100) ** (1 / years) - 1, 4),
-            "eq_dd": round(max_dd(eq), 4),
-        },
+        "stats": stats,
     }
-    if ref:
-        out["stats"].update(
-            spy_ret=round(ref[-1] / 100 - 1, 4),
-            spy_cagr=round((ref[-1] / 100) ** (1 / years) - 1, 4),
-            spy_dd=round(max_dd(ref), 4))
-    return out
 
 
 def markets():
@@ -678,15 +719,20 @@ def build_payload(prev_date=None):
     # this time round - a stale edition presented as a live one, which is the
     # exact failure this endpoint exists to end.
     _CACHE.clear()
-    prefetch([chart_url("QQQ", "10y"), chart_url("SPY", "10y"),
-              chart_url("TQQQ", "10y"), chart_url("TLT", "10y"), WEATHER_URL]
+    prefetch([chart_url("QQQ", since=CURVE_START), chart_url("SPY", "10y"),
+              chart_url("TQQQ", since=CURVE_START),
+              chart_url("TLT", since=CURVE_START),
+              chart_url("SPY", since=CURVE_START), WEATHER_URL]
              + [chart_url(sym, "3mo") for sym, _, _ in TICKERS]
              + [u for feeds in FEEDS.values() for _, u in feeds])
 
     # 250 sessions warm up the gates and another 200 warm up the 200-day moving
     # average, so five full years of chart need 1260 + 250 + 200 + slack. At
     # 1560 the average only became valid 151 sessions into the window.
-    qqq = chart("QQQ", "10y")[-1760:]
+    # The whole series now, not the last 1,760 sessions: the five-year price
+    # chart still slices its own window off the end, but the equity curve
+    # wants every session back to TQQQ's first day.
+    qqq = chart("QQQ", since=CURVE_START)
     if len(qqq) < 1700:
         return None, f"only {len(qqq)} QQQ sessions"
     g = gate([d for d, _ in qqq], [round(float(c), 4) for _, c in qqq])

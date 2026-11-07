@@ -150,7 +150,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-11-07a";
+  var BUILD = "2026-11-07b";
 
   // Where the edition comes from. The page cannot build it itself: Yahoo and
   // all but four of the RSS feeds refuse cross-origin browser requests, so
@@ -348,50 +348,92 @@ button:active{opacity:.6}
   // The first two charts show the index and where the rule stood in it. This
   // one shows the money, which is a different question: a 3x fund compounds
   // daily, so "in the market 70% of the time" says nothing about what was
-  // earned. One continuous line - the TLT stretches start from exactly where
-  // the TQQQ stretches left off - against SPY given the same $100 on the same
-  // day, faint in the background.
+  // earned. One continuous line over the whole life of TQQQ - the TLT
+  // stretches start from exactly where the TQQQ stretches left off - against
+  // SPY given the same $100 on the same day, faint in the background.
+  //
+  // This chart carries a vertical scale and the price charts do not, because
+  // here the numbers are comparable: both lines start at $100 on the same
+  // date, so the gap between them at any gridline IS the difference in
+  // return, readable without arithmetic.
   function curveHtml(h, inNow){
     var c = h && h.curve;
-    if(!c || !c.eq || !c.eq.length || c.eq.length !== (h.sig||"").length) return "";
-    var n=c.eq.length, W=640, H=210, PL=2, PR=2, PT=12, PB=22, i;
+    if(!c || !c.eq || !c.eq.length || c.eq.length !== (c.sig||"").length) return "";
+    // The viewBox is sized to the element, so one user unit is one CSS pixel
+    // and a 13px label is 13px on screen. The other charts are fixed at 640
+    // and scale down, which turns their labels into 6.8px on a phone - fine
+    // for an axis you glance at, useless for one you are meant to read values
+    // off, which is the whole point of this one.
+    var box = ($("body")||{}).clientWidth || 640;
+    var n=c.eq.length, W=Math.max(320, Math.min(680, box)), H=(W<520?200:240),
+        PL=52, PR=8, PT=12, PB=24, i;
     var ref = (c.spy && c.spy.length===n) ? c.spy : null;
     var vals = ref ? c.eq.concat(ref) : c.eq;
-    var lLo=Math.log(Math.min.apply(null,vals)), lHi=Math.log(Math.max.apply(null,vals));
-    var pad=(lHi-lLo)*0.08 || 0.02; lLo-=pad; lHi+=pad;
+    var lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals);
+    var lLo=Math.log(lo), lHi=Math.log(hi), pad=(lHi-lLo)*0.06 || 0.02;
+    lLo-=pad; lHi+=pad;
     var X=function(k){ return PL + k/(n-1)*(W-PL-PR); };
     var Y=function(v){ return H-PB - (Math.log(v)-lLo)/(lHi-lLo)*(H-PT-PB); };
+
+    // 1, 2, 5 per decade is the standard log ladder: every gap is either 2x or
+    // 2.5x, so the rungs stay evenly spaced down the whole axis.
+    var grid="", money=function(v){
+      return v>=1000 ? "$"+(v/1000)+"k" : "$"+v;
+    };
+    for(var e=Math.floor(Math.log(lo)/Math.LN10); e<=Math.ceil(Math.log(hi)/Math.LN10); e++){
+      [1,2,5].forEach(function(m){
+        var v=m*Math.pow(10,e);
+        if(v<Math.exp(lLo) || v>Math.exp(lHi)) return;
+        var y=Y(v).toFixed(1);
+        grid += '<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+
+          '" stroke="var(--rule)" stroke-width="1"/>'+
+          '<text x="'+(PL-7)+'" y="'+(+y+4).toFixed(1)+'" font-size="13" '+
+          'fill="var(--ink3)" text-anchor="end">'+money(v)+'</text>';
+      });
+    }
+
+    // Seventeen years will not take seventeen labels in 584 pixels, so a year
+    // is labelled only when there is room since the last one.
+    var ticks="", lastX=-99;
+    (c.ticks||[]).forEach(function(t){
+      var x=X(t[0]);
+      if(x-lastX < 56 || x > W-PR-14) return;
+      lastX=x;
+      ticks += '<text x="'+x.toFixed(1)+'" y="'+(H-6)+'" font-size="13" '+
+        'fill="var(--ink3)" text-anchor="middle">'+t[1]+'</text>';
+    });
 
     var spyLine="";
     if(ref){
       var sp=[];
       for(i=0;i<n;i++) sp.push(X(i).toFixed(1)+","+Y(ref[i]).toFixed(1));
       spyLine = '<polyline points="'+sp.join(" ")+'" fill="none" stroke="var(--ink2)" '+
-        'stroke-width="1.4" stroke-dasharray="3 3" opacity="0.4"/>';
+        'stroke-width="1.4" stroke-dasharray="3 3" opacity="0.45"/>';
     }
 
-    // The segment from point k to k+1 is the asset held on day k+1, which the
-    // rule picked at the close of day k - so it is sig[k], the same offset the
-    // price chart uses. Consecutive segments share an endpoint, which is what
-    // makes the join seamless where the holding changes.
+    // The segment from point k to k+1 is the asset held over that stretch,
+    // which the rule picked at the close of point k - so it is sig[k].
+    // Consecutive segments share an endpoint, which is what makes the join
+    // seamless where the holding changes.
     var segs="", k=0;
     while(k < n-1){
-      var st=h.sig[k], j=k;
-      while(j+1 < n-1 && h.sig[j+1]===st) j++;
+      var st=c.sig[k], j=k;
+      while(j+1 < n-1 && c.sig[j+1]===st) j++;
       var pp=[];
-      for(var m=k;m<=j+1;m++) pp.push(X(m).toFixed(1)+","+Y(c.eq[m]).toFixed(1));
+      for(var m2=k;m2<=j+1;m2++) pp.push(X(m2).toFixed(1)+","+Y(c.eq[m2]).toFixed(1));
       segs += '<polyline points="'+pp.join(" ")+'" fill="none" stroke="'+
-        (st==="1"?"var(--go)":"var(--ink3)")+'" stroke-width="'+(st==="1"?"2.6":"2.2")+
+        (st==="1"?"var(--go)":"var(--ink3)")+'" stroke-width="'+(st==="1"?"2.2":"2")+
         '" stroke-linejoin="round" stroke-linecap="round"/>';
       k = j+1;
     }
 
-    var s=c.stats||{}, yrs=c.years||(n/252);
-    var pc=function(v){ return (v>=0?"+":"")+Math.round(v*100)+"%"; };
+    var st=c.stats||{}, yrs=c.years||(n/252);
+    var pc=function(v){ return (v>=0?"+":"")+Math.round(v*100).toLocaleString()+"%"; };
+    var dollars=function(v){ return "$"+Math.round(v).toLocaleString(); };
     var svg = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+
-      'The value of 100 dollars moved between TQQQ and TLT by the rule, with '+
-      '100 dollars in SPY faint behind it.">'+
-      tickRow(h.dates, 0, n, X, W, H, "year")+spyLine+segs+
+      'The value of 100 dollars moved between TQQQ and TLT by the rule since '+
+      '2010, with 100 dollars in SPY faint behind it.">'+
+      grid+ticks+spyLine+segs+
       '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(c.eq[n-1]).toFixed(1)+'" r="4.5" '+
       'fill="'+(inNow?"var(--go)":"var(--stop)")+'"/></svg>';
 
@@ -400,18 +442,18 @@ button:active{opacity:.6}
       key([["var(--go)","In TQQQ"],["var(--ink3)","In TLT"],
            ["var(--ink2)","SPY",1]])+
       '<div class="say"><b>$100</b> switched between TQQQ and TLT on this signal '+
-      'alone would be <b>$'+Math.round(c.eq[n-1])+'</b> after '+yrs.toFixed(1)+
-      ' years &mdash; '+pc(s.eq_ret)+', or <b>'+(s.eq_cagr*100).toFixed(1)+
-      '% a year</b>, with a worst fall of <b>'+Math.round(-s.eq_dd*100)+'%</b>.'+
-      (s.spy_cagr===undefined ? "" :
-        ' The same $100 in SPY is the dashed line at <b>$'+Math.round(c.spy[n-1])+
-        '</b> ('+(s.spy_cagr*100).toFixed(1)+'% a year, worst fall '+
-        Math.round(-s.spy_dd*100)+'%).')+
-      ' The line is continuous: each TLT stretch starts from where the TQQQ '+
-      'stretch before it ended, so a flat grey run is the cost of sitting out. '+
-      c.switches+' switches over the span. Gross of costs, spreads and tax; the '+
-      'position for each session is the one the rule gave at the previous '+
-      'close.</div></div>';
+      'alone, from TQQQ&rsquo;s first day in '+esc((c.from||"").slice(0,4))+
+      ', would be <b>'+dollars(c.eq[n-1])+'</b> now &mdash; '+pc(st.eq_ret)+
+      ', or <b>'+(st.eq_cagr*100).toFixed(1)+'% a year</b>, with a worst fall of '+
+      '<b>'+Math.round(-st.eq_dd*100)+'%</b>.'+
+      (st.spy_cagr===undefined ? "" :
+        ' The same $100 in SPY is the dashed line at <b>'+dollars(c.spy[n-1])+
+        '</b> ('+(st.spy_cagr*100).toFixed(1)+'% a year, worst fall '+
+        Math.round(-st.spy_dd*100)+'%).')+
+      ' Both start at $100 on the same day, so the gap between the lines is the '+
+      'difference in return. '+c.switches+' switches over '+yrs.toFixed(0)+
+      ' years. Gross of costs, spreads and tax; the position for each session '+
+      'is the one the rule gave at the previous close.</div></div>';
   }
 
   // The panel showed today only, which cannot answer the question the
