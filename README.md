@@ -1,15 +1,15 @@
 # The Daily Paper
 
 A phone-readable morning brief: the TQQQ gate, markets, NYC weather, plus jobs,
-cyber-insurance intel, market news, England and sport.
+AI liability intel, market news and England.
 
 ## Two owners, two files
 
 `data/live.json` — **owned by the scheduled Action.** The TQQQ gate, the markets
 table and the weather. Regenerated every weekday evening by `update_live.py`.
 
-`data/research.json` — **owned by Claude.** Jobs, cyber intel, market news,
-England and sport. Written when the daily research run happens.
+`data/research.json` — **owned by Claude.** Jobs, research notes,
+England. Written when the daily research run happens.
 
 They are separate files so neither process can clobber the other's work. The page
 reads both and reports each one's freshness independently: if the research is

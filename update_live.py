@@ -8,7 +8,7 @@ the result, which the page then reads same-origin — no API key, no rate limit.
 
 This file owns ONLY the deterministic half: the TQQQ gate, the markets table
 and NYC weather. It must never touch data/research.json, which is written by
-Claude and holds the jobs, cyber, news and sport sections. Two owners, two
+Claude and holds the jobs and research sections. Two owners, two
 files, so neither can clobber the other.
 """
 import json
@@ -272,7 +272,7 @@ def gate(dates, closes):
     # What the rule actually earned, as opposed to what the index did. The page
     # cannot derive this from QQQ: it needs TQQQ and TLT prices, and a 3x fund
     # is not 3x the index over a multi-week stretch.
-    hist["curve"] = strategy_curve(hist["dates"], hist["sig"])
+    hist["curve"] = strategy_curve(hist["dates"], hist["sig"], hist.get("spy"))
     # Attach the persisted signal to each trailing day, so the strip can show
     # where the verdict actually changed rather than only where a gate blocked.
     trail = list(trail)
@@ -323,16 +323,22 @@ def max_dd(series):
     return worst
 
 
-def strategy_curve(dates, sig):
+def strategy_curve(dates, sig, spy=None):
     """What the rule actually earned: TQQQ while invested, TLT while not.
+
+    One continuous line. The stake is whole at every moment - it buys TQQQ at
+    the close the gate opens and sells it at the close the gate shuts, and the
+    TLT leg starts from exactly the value the TQQQ leg ended on, which is what
+    makes the flat stretches read as the cost of sitting out rather than as a
+    gap in the data.
 
     The position for a session is the one decided at the PREVIOUS close, which
     is how the page states the rule ("act at the next one"). Using the same
     day's signal would hand the strategy that day's move for free and inflate
-    every number on the chart - the classic way a backtest flatters itself.
+    every number on the chart.
 
-    Gross of costs, spreads and tax. Switches are rare (a couple a year), so
-    the omission is small, but the page says so rather than implying net.
+    SPY gets the same $100 on the same first date, as the background line.
+    Gross of costs, spreads and tax.
     """
     try:
         tq = dict(chart("TQQQ", "10y"))
@@ -341,7 +347,7 @@ def strategy_curve(dates, sig):
         print(f"  curve fetch failed ({type(e).__name__}); chart omitted",
               file=sys.stderr)
         return None
-    eq, bh, gaps, switches = [100.0], [100.0], 0, 0
+    eq, gaps, switches = [100.0], 0, 0
     for k in range(1, len(dates)):
         held = sig[k - 1]                      # decided at the previous close
         if k > 1 and held != sig[k - 2]:
@@ -353,28 +359,42 @@ def strategy_curve(dates, sig):
         else:
             gaps += 1
             eq.append(eq[-1])                  # a missing quote earns nothing
-        a2, b2 = tq.get(dates[k - 1]), tq.get(dates[k])
-        bh.append(bh[-1] * (b2 / a2 if (a2 and b2) else 1.0))
     if gaps:
         print(f"  curve: {gaps} of {len(dates)} sessions had no quote",
               file=sys.stderr)
+
+    # SPY on the same base. A missing quote holds the previous value rather
+    # than breaking the line, the same way the strategy leg handles one.
+    ref = None
+    if spy:
+        base = next((v for v in spy if v), None)
+        if base:
+            ref, last = [], 100.0
+            for v in spy:
+                if v:
+                    last = v / base * 100
+                ref.append(round(last, 2))
+
     d0 = datetime.strptime(dates[0], "%Y-%m-%d")
     d1 = datetime.strptime(dates[-1], "%Y-%m-%d")
     years = max((d1 - d0).days / 365.25, 0.5)
-    return {
+    out = {
         "eq": [round(v, 2) for v in eq],
-        "bh": [round(v, 2) for v in bh],
+        "spy": ref or [],
         "years": round(years, 2),
         "switches": switches,
         "stats": {
             "eq_ret": round(eq[-1] / 100 - 1, 4),
-            "bh_ret": round(bh[-1] / 100 - 1, 4),
             "eq_cagr": round((eq[-1] / 100) ** (1 / years) - 1, 4),
-            "bh_cagr": round((bh[-1] / 100) ** (1 / years) - 1, 4),
             "eq_dd": round(max_dd(eq), 4),
-            "bh_dd": round(max_dd(bh), 4),
         },
     }
+    if ref:
+        out["stats"].update(
+            spy_ret=round(ref[-1] / 100 - 1, 4),
+            spy_cagr=round((ref[-1] / 100) ** (1 / years) - 1, 4),
+            spy_dd=round(max_dd(ref), 4))
+    return out
 
 
 def markets():
@@ -413,29 +433,47 @@ def markets():
 # the page. Measured medians at selection: CNBC top 6.7h, CNBC economy 7.8h,
 # MarketWatch 4.7h, BBC World 6.8h, Al Jazeera 4.5h.
 FEEDS = {
+    # Market news, not "news for people who own shares". The CNBC top-news feed
+    # and MarketWatch top stories were carrying the personal-finance advice
+    # column and the political human-interest item - a senator leaving
+    # hospital, "my husband inherited $500,000" - because those are top stories
+    # at a general outlet. Measured over 48h: every one of those came from
+    # those two feeds and none from the four below, so this is a feed swap
+    # rather than a filter. 51 items inside 48h, against a limit of 8.
     "markets": [
-        ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
-        ("CNBC", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
-                 "?partnerId=wrss01&id=100003114"),
-        ("CNBC", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
-                 "?partnerId=wrss01&id=10000664"),
+        ("CNBC Markets", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                         "?partnerId=wrss01&id=15839069"),
+        ("CNBC Finance", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                         "?partnerId=wrss01&id=10000664"),
+        ("CNBC Economy", "https://search.cnbc.com/rs/search/combinedcms/view.xml"
+                         "?partnerId=wrss01&id=20910258"),
+        ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_bulletins"),
     ],
     "world": [
         ("BBC", "https://feeds.bbci.co.uk/news/world/rss.xml"),
         ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
     ],
-    # These five used to live in research.json, which nothing ever updated -
-    # it sat at 2026-08-11 for a fortnight while the page presented it as
-    # current. Every feed below was measured before being wired in: newest
-    # item and median age checked, and anything without a parseable pubDate or
-    # older than 48h at probe time was rejected outright (Krebs newest 268h,
-    # CBS Sports NBA 89h, BleepingComputer/ESPN/NBA.com unreachable).
-    "cyber": [
+    # AI liability, which replaced cyber insurance in November 2026. Every feed
+    # here was probed before being wired in - reachable, parseable date, newest
+    # item inside a day - and the dead or blocked ones are recorded so the next
+    # person does not retry them: Risk & Insurance, IAPP, Lawfare, National Law
+    # Review, JD Supra, Insurance Insider, PropertyCasualty360, InsuranceERM
+    # and The Verge all refuse a plain client with an HTTP error;
+    # artificialintelligenceact.eu and Eric Goldman's blog are reachable but
+    # publish far too rarely for a daily paper (median item 320h and 13,450h
+    # old). WordPress tag feeds looked like a precision shortcut and were not:
+    # the carriermanagement.com AI tag's newest item was a month old.
+    "ai_liability": [
+        ("Digital Insurance", "https://www.dig-in.com/feed?rss=true"),
+        ("Coverager", "https://coverager.com/feed/"),
+        ("Insurance Business", "https://www.insurancebusinessmag.com/us/rss/"),
+        ("Claims Journal", "https://www.claimsjournal.com/feed/"),
+        ("Carrier Management", "https://www.carriermanagement.com/feed/"),
         ("Insurance Journal", "https://www.insurancejournal.com/feed/"),
         ("Reinsurance News", "https://www.reinsurancene.ws/feed/"),
-        ("The Record", "https://therecord.media/feed"),
-        ("Artemis", "https://www.artemis.bm/feed/"),
         ("Cybersecurity Dive", "https://www.cybersecuritydive.com/feeds/news/"),
+        ("The Record", "https://therecord.media/feed"),
+        ("Ars Technica", "https://arstechnica.com/ai/feed/"),
     ],
     "uk": [
         ("BBC", "https://feeds.bbci.co.uk/news/uk/rss.xml"),
@@ -443,40 +481,108 @@ FEEDS = {
         ("Sky News", "https://feeds.skynews.com/feeds/rss/uk.xml"),
         ("BBC Politics", "https://feeds.bbci.co.uk/news/politics/rss.xml"),
     ],
-    "premier_league": [
-        ("BBC Sport", "https://feeds.bbci.co.uk/sport/football/premier-league/rss.xml"),
-        ("Sky Sports", "https://www.skysports.com/rss/11661"),
-        ("Guardian", "https://www.theguardian.com/football/premierleague/rss"),
-    ],
-    "f1": [
-        ("Autosport", "https://www.autosport.com/rss/f1/news/"),
-        ("Motorsport", "https://www.motorsport.com/rss/f1/news/"),
-        ("Sky Sports", "https://www.skysports.com/rss/12433"),
-        ("BBC Sport", "https://feeds.bbci.co.uk/sport/formula1/rss.xml"),
-    ],
-    "nba": [
-        ("Yahoo Sports", "https://sports.yahoo.com/nba/rss.xml"),
-        ("RealGM", "https://basketball.realgm.com/rss/wiretap/0/0.xml"),
-    ],
 }
 
 MAX_AGE_H = 48      # anything older is not news
 
-# Sport is lumpier than news - a league can go quiet for days, and the NBA is
-# out of season for a third of the year - so those sections get a longer window
-# rather than rendering empty.
-SECTION_MAX_AGE_H = {"premier_league": 96, "f1": 96, "nba": 120, "cyber": 72}
+# AI liability is a slower beat than market news: a trade title runs two or
+# three relevant pieces a day, not twenty. Measured yield under the filters
+# below was 10 items in 48h and 13 in 72h, so 96h keeps the section full
+# without reaching for anything stale.
+SECTION_MAX_AGE_H = {"ai_liability": 96}
 
-# The insurance and reinsurance feeds carry all insurance news, not just cyber,
-# so the cyber section is keyword-filtered. Applied to every cyber feed, not
-# just the general ones: an item from a security title that matches none of
-# these is not what this section is for either.
-CYBER_RE = re.compile(
-    r"cyber|ransom|breach|hack|malware|phish|extort|zero[- ]day|vulnerab|"
-    r"data protection|privacy|infosec|exfiltrat|ddos|ciso|threat actor",
+AI_RE = re.compile(
+    r"\bA\.?I\.?\b|artificial intelligence|machine learning|\bLLMs?\b|"
+    r"generative|chatbot|deepfake|algorithmic|autonomous|agentic|\bGPT\b|"
+    r"OpenAI|Anthropic|Copilot|robot", re.I)
+
+# What makes an AI story a LIABILITY story. Without this the section fills with
+# "Berkshire's pivot to AI bets" and "BMW supplier sees chip-price rises" -
+# real AI news, carried by insurance wires because they syndicate Bloomberg,
+# and nothing to do with the job.
+RISK_RE = re.compile(
+    # No bare "claim": on a general wire it is the verb, and it let through
+    # "Big Tech claims voters’ AI backlash is anti-Trump".
+    r"liabilit|insur|reinsur|coverage|underwrit|lawsuit|litigat|"
+    r"\bsued?\b|\bcourt\b|regulat|settle|damages|negligen|\bD&O\b|\bE&O\b|"
+    r"errors and omissions|\btort\b|class action|compliance|penalt|"
+    r"\bfine[sd]?\b|policyholder|actuar|legislat|\bbill\b|\bact\b|\blaw\b",
     re.I)
 
-SECTION_FILTER = {"cyber": CYBER_RE}
+# Three of these publications write about nothing but insurance, so an AI
+# headline there is already an AI-and-insurance headline, and the risk test
+# would only throw away good items ("How Allstate plans to capitalize on
+# agentic AI shopping"). The general wires get both tests.
+AI_TRADE = {"Digital Insurance", "Coverager", "Insurance Business"}
+
+# The advice-column genre, which is most of what made the old markets section
+# feel irrelevant. Catches the first-person family-finance headline wherever it
+# is syndicated from, so the feed swap is not the only thing standing between
+# the reader and "my 93-year-old father changed his will".
+PERSONAL_RE = re.compile(
+    "^\\s*(my|our|i\u2019m|i'm|i am|we\u2019re|we're)\\b"
+    "|\\bmy (husband|wife|son|daughter|father|mother|parents|in-laws|adviser|"
+    "financial adviser|retirement|pension)\\b"
+    "|\\bshould i\\b|\\bam i being\\b|\\bdear (quentin|moneyist)\\b", re.I)
+
+
+def keep_ai_liability(source, title):
+    if not AI_RE.search(title):
+        return False
+    return source in AI_TRADE or bool(RISK_RE.search(title))
+
+
+def keep_markets(source, title):
+    return not PERSONAL_RE.search(title)
+
+
+# Section -> predicate(source, title). A predicate rather than a regex because
+# the AI section's test depends on which publication the item came from.
+SECTION_FILTER = {"ai_liability": keep_ai_liability, "markets": keep_markets}
+
+
+ATOM = {"a": "http://www.w3.org/2005/Atom"}
+
+
+def feed_items(root):
+    """(title, date, link) for RSS <item> and Atom <entry> alike.
+
+    Insurance Business publishes Atom, and the old reader looked only for
+    <item>: it fetched the feed successfully and found nothing, which is the
+    quietest possible failure. Handling both formats costs a dozen lines and
+    removes a whole class of silently empty section.
+    """
+    out = []
+    for it in root.findall(".//item"):
+        out.append(((it.findtext("title") or "").strip(),
+                    it.findtext("pubDate"),
+                    (it.findtext("link") or "").strip()))
+    for it in root.findall(".//a:entry", ATOM):
+        link = ""
+        for ln in it.findall("a:link", ATOM):
+            if ln.get("rel", "alternate") == "alternate":
+                link = ln.get("href") or ""
+                break
+        out.append(((it.findtext("a:title", namespaces=ATOM) or "").strip(),
+                    it.findtext("a:published", namespaces=ATOM)
+                    or it.findtext("a:updated", namespaces=ATOM),
+                    link))
+    return out
+
+
+def parse_date(pd):
+    """RFC 822 (RSS) or ISO 8601 (Atom), always returned timezone-aware."""
+    import email.utils
+    try:
+        dt = email.utils.parsedate_to_datetime(pd)
+    except Exception:  # noqa: BLE001
+        try:
+            dt = datetime.fromisoformat(pd.strip().replace("Z", "+00:00"))
+        except Exception:  # noqa: BLE001
+            return None
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
 
 def headlines(limit=8):
@@ -488,7 +594,6 @@ def headlines(limit=8):
     and each item carries its age so the page can show it and you can see decay
     rather than infer it.
     """
-    import email.utils
     import xml.etree.ElementTree as ET
     now = datetime.now(timezone.utc)
     out = {}
@@ -499,16 +604,11 @@ def headlines(limit=8):
         for source, url in feeds:
             try:
                 root = ET.fromstring(fetch_bytes(url, 25))
-                for it in root.findall(".//item")[:15]:
-                    title = (it.findtext("title") or "").strip()
-                    pd = it.findtext("pubDate")
+                for title, pd, link in feed_items(root)[:15]:
                     if not title or not pd:
                         continue
-                    try:
-                        dt = email.utils.parsedate_to_datetime(pd)
-                        if dt.tzinfo is None:
-                            dt = dt.replace(tzinfo=timezone.utc)
-                    except Exception:  # noqa: BLE001
+                    dt = parse_date(pd)
+                    if dt is None:
                         continue
                     age = (now - dt).total_seconds() / 3600
                     # Sky Sports stamps some items a little in the future.
@@ -517,15 +617,14 @@ def headlines(limit=8):
                     if age < -6 or age > max_age:
                         continue
                     age = max(age, 0.0)
-                    if keep is not None and not keep.search(title):
+                    if keep is not None and not keep(source, title):
                         continue
                     key = title.lower()[:60]
                     if key in seen:
                         continue
                     seen.add(key)
                     items.append({"headline": title, "source": source,
-                                  "url": (it.findtext("link") or "").strip(),
-                                  "age_h": round(age, 1)})
+                                  "url": link, "age_h": round(age, 1)})
             except Exception as e:  # noqa: BLE001
                 print(f"  feed {source} ({section}) failed: {type(e).__name__}",
                       file=sys.stderr)

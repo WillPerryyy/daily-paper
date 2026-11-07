@@ -150,7 +150,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-11-06b";
+  var BUILD = "2026-11-06c";
 
   // Where the edition comes from. The page cannot build it itself: Yahoo and
   // all but four of the RSS feeds refuse cross-origin browser requests, so
@@ -168,6 +168,10 @@ button:active{opacity:.6}
   var FALLBACK = "data/live.json";
   var $ = function(i){ return document.getElementById(i); };
   var CACHE = "paper.cache";
+
+  // "1 days ago" was showing on every item between 24 and 36 hours old, which
+  // is most of the AI section on a quiet day.
+  function plural(n, word){ return n + " " + word + (n === 1 ? "" : "s"); }
 
   function esc(s){
     return String(s == null ? "" : s)
@@ -344,33 +348,32 @@ button:active{opacity:.6}
   // The first two charts show the index and where the rule stood in it. This
   // one shows the money, which is a different question: a 3x fund compounds
   // daily, so "in the market 70% of the time" says nothing about what was
-  // earned. Both lines start at the same $100 on the same day, so the gap
-  // between them is the whole case for the rule - made mostly by the drawdowns
-  // the dashed line takes and the solid one does not.
+  // earned. One continuous line - the TLT stretches start from exactly where
+  // the TQQQ stretches left off - against SPY given the same $100 on the same
+  // day, faint in the background.
   function curveHtml(h, inNow){
     var c = h && h.curve;
     if(!c || !c.eq || !c.eq.length || c.eq.length !== (h.sig||"").length) return "";
     var n=c.eq.length, W=640, H=210, PL=2, PR=2, PT=12, PB=22, i;
-    var vals=c.eq.concat(c.bh && c.bh.length===n ? c.bh : []);
+    var ref = (c.spy && c.spy.length===n) ? c.spy : null;
+    var vals = ref ? c.eq.concat(ref) : c.eq;
     var lLo=Math.log(Math.min.apply(null,vals)), lHi=Math.log(Math.max.apply(null,vals));
     var pad=(lHi-lLo)*0.08 || 0.02; lLo-=pad; lHi+=pad;
     var X=function(k){ return PL + k/(n-1)*(W-PL-PR); };
     var Y=function(v){ return H-PB - (Math.log(v)-lLo)/(lHi-lLo)*(H-PT-PB); };
 
-    var bhLine="";
-    if(c.bh && c.bh.length===n){
-      var bp=[];
-      for(i=0;i<n;i++) bp.push(X(i).toFixed(1)+","+Y(c.bh[i]).toFixed(1));
-      // Amber, not grey. Grey already means "out of TQQQ" on the solid line, so
-      // a grey comparison line put two different meanings in one colour and the
-      // two were genuinely hard to tell apart on the 2022 stretch.
-      bhLine = '<polyline points="'+bp.join(" ")+'" fill="none" stroke="var(--sma50)" '+
-        'stroke-width="1.5" stroke-dasharray="4 3" opacity="0.75"/>';
+    var spyLine="";
+    if(ref){
+      var sp=[];
+      for(i=0;i<n;i++) sp.push(X(i).toFixed(1)+","+Y(ref[i]).toFixed(1));
+      spyLine = '<polyline points="'+sp.join(" ")+'" fill="none" stroke="var(--ink2)" '+
+        'stroke-width="1.4" stroke-dasharray="3 3" opacity="0.4"/>';
     }
 
     // The segment from point k to k+1 is the asset held on day k+1, which the
     // rule picked at the close of day k - so it is sig[k], the same offset the
-    // price chart uses.
+    // price chart uses. Consecutive segments share an endpoint, which is what
+    // makes the join seamless where the holding changes.
     var segs="", k=0;
     while(k < n-1){
       var st=h.sig[k], j=k;
@@ -378,34 +381,37 @@ button:active{opacity:.6}
       var pp=[];
       for(var m=k;m<=j+1;m++) pp.push(X(m).toFixed(1)+","+Y(c.eq[m]).toFixed(1));
       segs += '<polyline points="'+pp.join(" ")+'" fill="none" stroke="'+
-        (st==="1"?"var(--go)":"var(--ink3)")+'" stroke-width="'+(st==="1"?"2.6":"2")+
-        '" stroke-linejoin="round" stroke-linecap="round"'+
-        (st==="1"?"":' opacity="0.6"')+'/>';
+        (st==="1"?"var(--go)":"var(--ink3)")+'" stroke-width="'+(st==="1"?"2.6":"2.2")+
+        '" stroke-linejoin="round" stroke-linecap="round"/>';
       k = j+1;
     }
 
     var s=c.stats||{}, yrs=c.years||(n/252);
     var pc=function(v){ return (v>=0?"+":"")+Math.round(v*100)+"%"; };
     var svg = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+
-      'The value of 100 dollars moved between TQQQ and TLT by the rule, against '+
-      '100 dollars left in TQQQ throughout.">'+
-      tickRow(h.dates, 0, n, X, W, H, "year")+bhLine+segs+
+      'The value of 100 dollars moved between TQQQ and TLT by the rule, with '+
+      '100 dollars in SPY faint behind it.">'+
+      tickRow(h.dates, 0, n, X, W, H, "year")+spyLine+segs+
       '<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(c.eq[n-1]).toFixed(1)+'" r="4.5" '+
       'fill="'+(inNow?"var(--go)":"var(--stop)")+'"/></svg>';
 
     return '<div class="chart" style="margin-top:30px">'+
       '<h3>What the rule earned</h3>'+svg+
-      key([["var(--go)","In TQQQ"],["var(--ink3)","In TLT",1],
-           ["var(--sma50)","TQQQ throughout"]])+
+      key([["var(--go)","In TQQQ"],["var(--ink3)","In TLT"],
+           ["var(--ink2)","SPY",1]])+
       '<div class="say"><b>$100</b> switched between TQQQ and TLT on this signal '+
       'alone would be <b>$'+Math.round(c.eq[n-1])+'</b> after '+yrs.toFixed(1)+
       ' years &mdash; '+pc(s.eq_ret)+', or <b>'+(s.eq_cagr*100).toFixed(1)+
-      '% a year</b>. The same $100 left in TQQQ throughout is the dashed line at '+
-      '<b>$'+Math.round(c.bh[n-1])+'</b> ('+(s.bh_cagr*100).toFixed(1)+'% a year), '+
-      'and fell <b>'+Math.round(-s.bh_dd*100)+'%</b> at its worst against the '+
-      'rule&rsquo;s <b>'+Math.round(-s.eq_dd*100)+'%</b>. '+c.switches+
-      ' switches over the span. Gross of costs, spreads and tax; the position '+
-      'for each session is the one the rule gave at the previous close.</div></div>';
+      '% a year</b>, with a worst fall of <b>'+Math.round(-s.eq_dd*100)+'%</b>.'+
+      (s.spy_cagr===undefined ? "" :
+        ' The same $100 in SPY is the dashed line at <b>$'+Math.round(c.spy[n-1])+
+        '</b> ('+(s.spy_cagr*100).toFixed(1)+'% a year, worst fall '+
+        Math.round(-s.spy_dd*100)+'%).')+
+      ' The line is continuous: each TLT stretch starts from where the TQQQ '+
+      'stretch before it ended, so a flat grey run is the cost of sitting out. '+
+      c.switches+' switches over the span. Gross of costs, spreads and tax; the '+
+      'position for each session is the one the rule gave at the previous '+
+      'close.</div></div>';
   }
 
   // The panel showed today only, which cannot answer the question the
@@ -506,8 +512,8 @@ button:active{opacity:.6}
       var age="";
       if(typeof it.age_h==="number")
         age = it.age_h<1 ? "just now"
-            : (it.age_h<24 ? Math.round(it.age_h)+" hours ago"
-                           : Math.round(it.age_h/24)+" days ago");
+            : (it.age_h<24 ? plural(Math.round(it.age_h), "hour")+" ago"
+                           : plural(Math.round(it.age_h/24), "day")+" ago");
       var meta=[it.source||it.company, age].filter(Boolean).join("  ·  ");
       var note=it.why||it.note||"";
       return '<div class="item"><div class="h">'+head+'</div>'+
@@ -535,9 +541,8 @@ button:active{opacity:.6}
     html += gateHtml(live.gate, live.params||{rv_thr:0.35,vr_thr:1.10,dd_exit:0.20});
     html += marketsHtml(live.markets);
     var hl=live.headlines||{};
-    [["markets","Market News"],["world","World"],["cyber","Cyber Insurance"],
-     ["uk","England"],["premier_league","Premier League"],["f1","Formula 1"],
-     ["nba","NBA"]].forEach(function(p){
+    [["markets","Market News"],["world","World"],
+     ["ai_liability","AI Liability"],["uk","England"]].forEach(function(p){
       if(hl[p[0]] && hl[p[0]].length) html += h2(p[1])+itemsHtml(hl[p[0]]);
     });
     html += weatherHtml(live.weather);
@@ -559,8 +564,8 @@ button:active{opacity:.6}
     if(isNaN(t)) return esc(String(iso));
     var h = (Date.now() - t) / 3600000;
     var ago = h < 1.5 ? "just now"
-            : h < 48  ? Math.round(h) + " hours ago"
-                      : Math.round(h / 24) + " days ago";
+            : h < 48  ? plural(Math.round(h), "hour") + " ago"
+                      : plural(Math.round(h / 24), "day") + " ago";
     var when = t.toLocaleString([], {month:"short", day:"numeric",
                                      hour:"2-digit", minute:"2-digit"});
     return (h > 6 ? "<b>" + ago + "</b>" : ago) + " (" + esc(when) + ")";
