@@ -150,7 +150,7 @@ button:active{opacity:.6}
 
 <script>
 (function () {
-  var BUILD = "2026-11-06c";
+  var BUILD = "2026-11-07a";
 
   // Where the edition comes from. The page cannot build it itself: Yahoo and
   // all but four of the RSS feeds refuse cross-origin browser requests, so
@@ -616,6 +616,38 @@ button:active{opacity:.6}
   var c=localStorage.getItem(CACHE);
   if(c){ try{ var p=JSON.parse(c); if(p.build===BUILD) render(p.live,true); }catch(e){} }
   load(false);
+
+  // The page keeps itself up to date, because nothing else can.
+  //
+  // GitHub Pages serves index.html with Cache-Control: max-age=600 and offers
+  // no way to change that - there is no header configuration on Pages at all.
+  // Worse, a page added to the home screen on iOS runs without a reload button
+  // and can hold its copy of the HTML for far longer than ten minutes. The
+  // result looked exactly like a broken deploy: data/live.json updates on
+  // schedule, so the paper keeps showing fresh headlines, while the structure
+  // around them - sections, charts, the lot - stays weeks behind, because that
+  // part lives in the cached HTML.
+  //
+  // So the running page fetches its own source past the cache and compares the
+  // build stamp. A newer one is loaded under a fresh query string rather than
+  // via reload(), because a plain reload is free to serve the same cached copy
+  // again, while a URL the browser has never seen must go to the network. The
+  // sessionStorage guard means a CDN still serving the old file costs one
+  // wasted navigation, not a loop.
+  setTimeout(function(){
+    try{
+      fetch("index.html", {cache:"no-store"})
+        .then(function(r){ return r.ok ? r.text() : ""; })
+        .then(function(t){
+          var m = t.match(/var BUILD = "([^"]+)"/);
+          if(!m || m[1] === BUILD) return;
+          if(sessionStorage.getItem("seenbuild") === m[1]) return;
+          sessionStorage.setItem("seenbuild", m[1]);
+          location.replace(location.pathname + "?v=" + encodeURIComponent(m[1]));
+        })
+        .catch(function(){});
+    }catch(e){}
+  }, 1200);
 })();
 </script>
 </body>
