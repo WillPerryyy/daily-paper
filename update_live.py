@@ -269,6 +269,10 @@ def gate(dates, closes):
     # QQQ closes, and 3x is not 3x the index return over a multi-week stretch -
     # daily reset and financing make the difference large enough to mislead.
     hist["runs"] = green_runs(hist["dates"], hist["sig"])
+    # What the rule actually earned, as opposed to what the index did. The page
+    # cannot derive this from QQQ: it needs TQQQ and TLT prices, and a 3x fund
+    # is not 3x the index over a multi-week stretch.
+    hist["curve"] = strategy_curve(hist["dates"], hist["sig"])
     # Attach the persisted signal to each trailing day, so the strip can show
     # where the verdict actually changed rather than only where a gate blocked.
     trail = list(trail)
@@ -309,6 +313,68 @@ def green_runs(dates, sig):
                     "tq": None if not (pa and pb) else round((pb / pa - 1) * 100, 1)})
         i = j + 1
     return out
+
+
+def max_dd(series):
+    peak, worst = series[0], 0.0
+    for v in series:
+        peak = max(peak, v)
+        worst = min(worst, v / peak - 1)
+    return worst
+
+
+def strategy_curve(dates, sig):
+    """What the rule actually earned: TQQQ while invested, TLT while not.
+
+    The position for a session is the one decided at the PREVIOUS close, which
+    is how the page states the rule ("act at the next one"). Using the same
+    day's signal would hand the strategy that day's move for free and inflate
+    every number on the chart - the classic way a backtest flatters itself.
+
+    Gross of costs, spreads and tax. Switches are rare (a couple a year), so
+    the omission is small, but the page says so rather than implying net.
+    """
+    try:
+        tq = dict(chart("TQQQ", "10y"))
+        tl = dict(chart("TLT", "10y"))
+    except Exception as e:  # noqa: BLE001
+        print(f"  curve fetch failed ({type(e).__name__}); chart omitted",
+              file=sys.stderr)
+        return None
+    eq, bh, gaps, switches = [100.0], [100.0], 0, 0
+    for k in range(1, len(dates)):
+        held = sig[k - 1]                      # decided at the previous close
+        if k > 1 and held != sig[k - 2]:
+            switches += 1
+        px = tq if held == "1" else tl
+        a, b = px.get(dates[k - 1]), px.get(dates[k])
+        if a and b:
+            eq.append(eq[-1] * (b / a))
+        else:
+            gaps += 1
+            eq.append(eq[-1])                  # a missing quote earns nothing
+        a2, b2 = tq.get(dates[k - 1]), tq.get(dates[k])
+        bh.append(bh[-1] * (b2 / a2 if (a2 and b2) else 1.0))
+    if gaps:
+        print(f"  curve: {gaps} of {len(dates)} sessions had no quote",
+              file=sys.stderr)
+    d0 = datetime.strptime(dates[0], "%Y-%m-%d")
+    d1 = datetime.strptime(dates[-1], "%Y-%m-%d")
+    years = max((d1 - d0).days / 365.25, 0.5)
+    return {
+        "eq": [round(v, 2) for v in eq],
+        "bh": [round(v, 2) for v in bh],
+        "years": round(years, 2),
+        "switches": switches,
+        "stats": {
+            "eq_ret": round(eq[-1] / 100 - 1, 4),
+            "bh_ret": round(bh[-1] / 100 - 1, 4),
+            "eq_cagr": round((eq[-1] / 100) ** (1 / years) - 1, 4),
+            "bh_cagr": round((bh[-1] / 100) ** (1 / years) - 1, 4),
+            "eq_dd": round(max_dd(eq), 4),
+            "bh_dd": round(max_dd(bh), 4),
+        },
+    }
 
 
 def markets():
@@ -513,7 +579,8 @@ def build_payload(prev_date=None):
     # this time round - a stale edition presented as a live one, which is the
     # exact failure this endpoint exists to end.
     _CACHE.clear()
-    prefetch([chart_url("QQQ", "10y"), chart_url("SPY", "10y"), WEATHER_URL]
+    prefetch([chart_url("QQQ", "10y"), chart_url("SPY", "10y"),
+              chart_url("TQQQ", "10y"), chart_url("TLT", "10y"), WEATHER_URL]
              + [chart_url(sym, "3mo") for sym, _, _ in TICKERS]
              + [u for feeds in FEEDS.values() for _, u in feeds])
 
