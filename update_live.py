@@ -32,13 +32,24 @@ NY = ZoneInfo("America/New_York")
 P = dict(rv_win=20, rv_thr=0.35, vr_fast=20, vr_slow=250,
          vr_thr=1.10, dd_win=250, dd_exit=0.20, dd_reenter=0.10, persist=2)
 
+# Futures, FX and crypto only. The table used to carry ^NDX, ^GSPC, QQQ and
+# TQQQ, which print nothing between 16:00 and 09:30, and ^TNX and ^IRX, which
+# are worse: measured on a Monday morning their newest bar was 3,872 minutes
+# old - two and a half days. Every instrument below trades through the night,
+# so the table moves whenever the page is opened.
+#
+# ^VIX is the one exception and is kept deliberately: it is the gate's own
+# subject, and Cboe publishes it 03:00-09:15 and 09:30-16:15 New York, so it
+# is live for most of the hours this page gets read. It goes quiet overnight,
+# and a row that has not moved for hours says so rather than pretending.
 TICKERS = [
-    ("^NDX", "Nasdaq 100", "idx"), ("^GSPC", "S&P 500", "idx"),
-    ("QQQ", "QQQ", "idx"), ("TQQQ", "TQQQ", "idx"),
-    ("^VIX", "VIX", "lvl"), ("^IRX", "13w T-bill", "pct"),
-    ("^TNX", "10y Treasury", "pct"), ("GBPUSD=X", "GBP/USD", "fx"),
-    ("BZ=F", "Brent crude", "usd"), ("BTC-USD", "Bitcoin", "usd"),
+    ("NQ=F", "Nasdaq 100", "idx"), ("ES=F", "S&P 500", "idx"),
+    ("RTY=F", "Russell 2000", "idx"), ("^VIX", "VIX", "lvl"),
+    ("ZB=F", "30y T-bond", "lvl"), ("ZN=F", "10y T-note", "lvl"),
+    ("GC=F", "Gold", "usd"), ("BZ=F", "Brent crude", "usd"),
+    ("GBPUSD=X", "GBP/USD", "fx"), ("BTC-USD", "Bitcoin", "usd"),
 ]
+
 
 WMO = {0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
        45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Drizzle",
@@ -170,6 +181,19 @@ def chart_url(symbol, rng="3y", since=None):
     if since:
         return f"{base}?period1={since}&period2=9999999999&interval=1d"
     return f"{base}?range={rng}&interval=1d"
+
+
+def quote_url(symbol):
+    """The live price and the prior settlement, in one small response.
+
+    interval=1d would be smaller still but omits previousClose, and the daily
+    bar is no use here anyway: chart() deliberately drops an unsettled tail,
+    which is exactly the bar a futures quote consists of for twenty-three
+    hours out of twenty-four. This reads meta instead, so it reports the price
+    as it stands rather than as it last settled.
+    """
+    return ("https://query1.finance.yahoo.com/v8/finance/chart/"
+            f"{urllib.request.quote(symbol)}?range=1d&interval=15m")
 
 
 def chart(symbol, rng="3y", since=None):
@@ -439,32 +463,39 @@ def strategy_curve(dates, sig):
 
 
 def markets():
+    now = datetime.now(timezone.utc)
     rows = []
     for sym, label, kind in TICKERS:
         try:
-            r = chart(sym, "3mo")
-            if len(r) < 7:
+            m = get(quote_url(sym))["chart"]["result"][0]["meta"]
+            last = m.get("regularMarketPrice")
+            # previousClose is the prior SETTLEMENT for a future, which is
+            # what "up 0.5% overnight" is quoted against.
+            prev = m.get("previousClose") or m.get("chartPreviousClose")
+            if last is None or not prev:
+                print(f"  markets: {sym} has no price or no settlement",
+                      file=sys.stderr)
                 continue
-            closes = [c for _, c in r]
-            last, prev = closes[-1], closes[-2]
-            chg = (last / prev - 1) * 100
-            wk = (last / closes[-6] - 1) * 100 if len(closes) >= 6 else None
-            if kind == "pct":
-                val = f"{last:.2f}%"
-            elif kind == "fx":
+            t = m.get("regularMarketTime")
+            age = (round((now - datetime.fromtimestamp(t, timezone.utc))
+                         .total_seconds() / 60) if t else None)
+            if kind == "fx":
                 val = f"{last:.4f}"
             elif kind == "usd":
                 val = f"${last:,.2f}" if last < 1000 else f"${last:,.0f}"
             elif kind == "lvl":
-                val = f"{last:.2f}"
-            else:
                 val = f"{last:,.2f}"
+            else:
+                val = f"{last:,.0f}"
             rows.append({"label": label, "value": val,
-                         "chg": round(chg, 2),
-                         "wk": round(wk, 2) if wk is not None else None,
-                         "date": r[-1][0]})
+                         "chg": round((last / prev - 1) * 100, 2),
+                         "age_m": age})
         except Exception as e:  # noqa: BLE001
             print(f"  markets: {sym} failed ({type(e).__name__})", file=sys.stderr)
+    fresh = [r["age_m"] for r in rows if r["age_m"] is not None]
+    if fresh:
+        print(f"  markets: {len(rows)} quotes, newest {min(fresh)}m, "
+              f"oldest {max(fresh)}m")
     return rows
 
 
@@ -723,7 +754,7 @@ def build_payload(prev_date=None):
               chart_url("TQQQ", since=CURVE_START),
               chart_url("TLT", since=CURVE_START),
               chart_url("SPY", since=CURVE_START), WEATHER_URL]
-             + [chart_url(sym, "3mo") for sym, _, _ in TICKERS]
+             + [quote_url(sym) for sym, _, _ in TICKERS]
              + [u for feeds in FEEDS.values() for _, u in feeds])
 
     # 250 sessions warm up the gates and another 200 warm up the 200-day moving

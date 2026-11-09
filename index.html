@@ -143,6 +143,9 @@ section > h2:first-child{margin-top:0}
 .mrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   padding:10px 0;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums}
 .mrow .nm{font-size:15.5px}
+.mrow .nm .old{font:400 11.5px var(--mono);color:var(--ink3);margin-left:9px}
+.note{font-size:13.5px;line-height:1.5;color:var(--ink3);margin:-2px 0 10px;
+  max-width:46ch}
 .mrow .nm .sm{color:var(--ink3);font-size:13px}
 .mrow .rt{text-align:right;white-space:nowrap}
 .mrow .px{font:500 15.5px var(--mono)}
@@ -189,7 +192,7 @@ section > h2:first-child{margin-top:0}
 
 <script>
 (function () {
-  var BUILD = "2026-11-07c";
+  var BUILD = "2026-11-09a";
 
   // Where the edition comes from. The page cannot build it itself: Yahoo and
   // all but four of the RSS feeds refuse cross-origin browser requests, so
@@ -586,14 +589,27 @@ section > h2:first-child{margin-top:0}
            '<div class="chart" id="cbox3"></div>';
   }
 
+  // Every quote here is from something that trades overnight, so the table is
+  // worth reading at any hour - but only if it admits when a particular row
+  // has gone quiet. VIX stops printing between 16:15 and 03:00 New York, and
+  // a two-hour-old number shown as though it were live is the failure this
+  // section was changed to fix.
   function marketsHtml(rows){
     if(!rows || !rows.length) return "";
-    return h2("Markets")+rows.map(function(r){
-      var cls=r.chg>=0?"up":"dn", sign=r.chg>=0?"+":"";
-      return '<div class="mrow"><div class="nm">'+esc(r.label)+'</div>'+
-        '<div class="rt"><span class="px">'+esc(r.value)+'</span>'+
-        '<span class="ch '+cls+'">'+sign+r.chg.toFixed(2)+'%</span></div></div>';
-    }).join("");
+    return h2("Markets")+
+      '<div class="note">Futures, FX and crypto, against the previous '+
+      'settlement. These move overnight.</div>'+
+      rows.map(function(r){
+        var cls=r.chg>=0?"up":"dn", sign=r.chg>=0?"+":"";
+        var stale = (typeof r.age_m==="number" && r.age_m>120)
+          ? '<span class="old">'+(r.age_m<1440
+              ? plural(Math.round(r.age_m/60),"hr")
+              : plural(Math.round(r.age_m/1440),"day"))+' old</span>'
+          : "";
+        return '<div class="mrow"><div class="nm">'+esc(r.label)+stale+'</div>'+
+          '<div class="rt"><span class="px">'+esc(r.value)+'</span>'+
+          '<span class="ch '+cls+'">'+sign+r.chg.toFixed(2)+'%</span></div></div>';
+      }).join("");
   }
 
   function itemsHtml(items){
